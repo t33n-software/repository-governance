@@ -1,0 +1,91 @@
+name: CI (go) — reusable
+
+on:
+  workflow_call:
+    inputs:
+      quality_class:
+        description: The fleet quality-gate class of the calling repository (linux-only or full).
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: local
+  GOVCS: "*:off"
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  select:
+    name: Select the quality-gate matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - name: Select the class matrix
+        id: select
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ inputs.quality_class }}" in
+            linux-only)
+              matrix='{"include":[{"name":"linux-amd64","os":"ubuntu-24.04","goos":"linux","goarch":"amd64"}]}'
+              ;;
+            full)
+              matrix='{"include":[{"name":"linux-amd64","os":"ubuntu-24.04","goos":"linux","goarch":"amd64"},{"name":"macos-arm64","os":"macos-15","goos":"darwin","goarch":"arm64"},{"name":"windows-amd64","os":"windows-2025","goos":"windows","goarch":"amd64"}]}'
+              ;;
+            *)
+              echo "unknown quality_class: ${{ inputs.quality_class }}" >&2
+              exit 1
+              ;;
+          esac
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  quality:
+    name: Quality gates (${{ matrix.name }})
+    needs: select
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Read the pinned Go toolchain from the config seam
+        id: toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(jq -r '.toolchain.goVersion' git-governance.quality.json)"
+          test -n "$version" && test "$version" != "null"
+          echo "go-version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: ${{ steps.toolchain.outputs.go-version }}
+          check-latest: false
+          cache: false
+
+      - name: Verify controlled Go toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(go env GOVERSION)" = "go${{ steps.toolchain.outputs.go-version }}"
+          test "$(go env GOTOOLCHAIN)" = "local"
+          test "$(go env GOOS)" = "${{ matrix.goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.goarch }}"
+
+      - name: Run the canonical quality gate
+        env:
+          GOFLAGS: -mod=readonly
+        run: go tool -modfile tools/go.mod quality-gate
