@@ -17,3 +17,16 @@ does not rely on any external governance repository or unpublished rule set.
 |---|---|---|
 | Local repository | VERIFIED | `main` is initialized; every audit and release gate begins by checking the current Git status |
 | Go module | VERIFIED | `github.com/t33n-software/repository-governance`, language Go 1.26 and pinned toolchain Go 1.26.6 |
+
+## Core capabilities
+
+| Capability | Status | Verification |
+|---|---|---|
+| Reusable workflow payloads | VERIFIED | `reusable-ci-go`, `reusable-codeql-go`, and `reusable-dependency-review` carry only `on: workflow_call`, full-length SHA-pinned actions, the permission matrix, and bounded execution; contract-test set |
+| Composite actions | VERIFIED | `setup-controlled-go` and `verify-canonical-files` carry the controlled-toolchain and verifier shells; contract-test set |
+| Canonical callers | VERIFIED | the four hash-pinned masters cover every shared line with the exact job names and grants; byte-identity with the home's own callers is proven by the contract-test set |
+| Canonical file family | VERIFIED | `files/{gitattributes,gitignore,lefthook,dependabot,codeowners}` carry the canonical content; contract-test set |
+| Conformance verifier | VERIFIED | `cmd/verify-canonical` proves caller hashes and pins, canonical files, CODEOWNERS materialization, config-seam conformance, tool-pin admission, and license-lane wiring fail-closed; same-package whitebox tests |
+| Verifier schemas | VERIFIED | `schemas/repo-bindings/v1/` and `schemas/caller-hashes/v1/` strictly decoded; conformance vectors prove every acceptance and rejection |
+| Boundary fuzzing | VERIFIED | `FuzzDecodeBindings` fuzzes the binding-manifest decoder |
+| Dogfooding | VERIFIED | the home's own callers are byte-identical to the masters; `go tool -modfile tools/go.mod quality-gate` runs the canonical gate set against this repository |
