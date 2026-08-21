@@ -1,0 +1,20 @@
+name: Verify canonical files
+description: >-
+  Runs the canonical conformance verifier (verify-canonical) against the
+  calling repository: caller hashes and pins, canonical file equality,
+  CODEOWNERS materialization, config-seam conformance, tool-pin admission,
+  and license-lane wiring.
+inputs:
+  repo:
+    description: The repository root to verify.
+    required: false
+    default: "."
+runs:
+  using: composite
+  steps:
+    - name: Set up controlled Go
+      uses: t33n-software/repository-governance/.github/actions/setup-controlled-go@89be739ee8a1d1ed6ebbe97dd1556a253477d242
+
+    - name: Run the canonical conformance verifier
+      shell: bash
+      run: go tool -modfile tools/go.mod verify-canonical --repo "${{ inputs.repo }}"
