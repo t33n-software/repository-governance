@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/t33n-software/repository-governance/main/schemas/caller-hashes/v1/schema.json",
+  "title": "Caller Hashes Record",
+  "description": "The canonical caller-hash record published by the repository-governance home (caller-hashes.json). It binds every canonical caller master to its tenant file, its class variant, and its SHA-256. The schema is owned by the repository-governance home, strictly decoded, and proven by the contract-test set.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "home", "callers"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "The canonical caller-hashes schema version."
+    },
+    "home": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "sha"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "The home release tag; documentation, never the trust anchor."
+        },
+        "sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "callers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["master", "tenantFile", "class", "sha256"],
+        "properties": {
+          "master": {
+            "type": "string",
+            "pattern": "^hosting-platforms/github/workflows/callers/[a-z0-9-]+/[a-z0-9-]+\\.yml$"
+          },
+          "tenantFile": {
+            "type": "string",
+            "pattern": "^\\.github/workflows/[a-z0-9-]+\\.yml$"
+          },
+          "class": {
+            "type": "string",
+            "enum": ["", "full", "linux-only"],
+            "description": "The class variant of the master, or empty for classless callers."
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
+  }
+}

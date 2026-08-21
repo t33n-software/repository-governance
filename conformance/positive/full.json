@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "home": {
+    "repository": "t33n-software/repository-governance",
+    "version": "v1.0.0",
+    "sha": "89be739ee8a1d1ed6ebbe97dd1556a253477d242"
+  },
+  "class": {
+    "qualityGates": "full",
+    "codeScanning": true,
+    "licenseHub": true
+  },
+  "callers": [
+    {
+      "file": ".github/workflows/ci.yml",
+      "master": "hosting-platforms/github/workflows/callers/go/ci-full.yml",
+      "sha256": "a85b8dd053153722795f614cee4c8e05045f10136eb9461a8fb9604bb6c668c4"
+    },
+    {
+      "file": ".github/workflows/codeql.yml",
+      "master": "hosting-platforms/github/workflows/callers/go/codeql.yml",
+      "sha256": "8fbf970fa214306a967ca0c3d0043f5a88b69c270b4690e2c8ff2b3a414d4d21"
+    },
+    {
+      "file": ".github/workflows/dependency-review.yml",
+      "master": "hosting-platforms/github/workflows/callers/go/dependency-review.yml",
+      "sha256": "58e8354e724039316adb5e1eac4e523037d36c5e68096e9f91bdffcbfb1def06"
+    }
+  ],
+  "files": {
+    "lefthook": { "path": "lefthook.yml", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+    "gitattributes": { "path": ".gitattributes", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
+    "gitignore": { "path": ".gitignore", "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" },
+    "dependabot": { "path": ".github/dependabot.yml", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" }
+  },
+  "codeowners": { "path": ".github/CODEOWNERS", "defaultOwner": "@CyberT33N" },
+  "quality": { "config": "git-governance.quality.json", "schemaVersion": 3 },
+  "tools": { "module": "tools/go.mod", "catalogVersion": 1 }
+}

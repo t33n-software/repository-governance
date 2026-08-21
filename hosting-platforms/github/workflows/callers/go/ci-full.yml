@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "release/**", "support/**"]
+  pull_request:
+    branches: [main, develop, "release/**", "support/**"]
+  schedule:
+    - cron: "17 1 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  quality:
+    name: Quality gates
+    permissions:
+      contents: read
+    uses: t33n-software/repository-governance/.github/workflows/reusable-ci-go.yml@842c23028f0635a6478b727248033731693139a4
+    with:
+      quality_class: full
