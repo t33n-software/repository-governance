@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/t33n-software/repository-governance/main/schemas/repo-bindings/v1/schema.json",
+  "title": "Repository Bindings Manifest",
+  "description": "The canonical tenant binding manifest (repo-bindings.json). It records the home pin, the fleet classes, the bound callers with their hashes, the canonical file bindings, the CODEOWNERS render values, the config-seam pin, and the tooling-module pin. The schema is owned by the repository-governance home, strictly decoded, and proven by conformance vectors.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "home", "class", "callers", "files", "codeowners", "quality", "tools"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "The canonical repo-bindings schema version."
+    },
+    "home": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "sha"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+/[a-z0-9-]+$",
+          "description": "The home repository coordinate (owner/repository)."
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "The bound home release tag; documentation, never the trust anchor."
+        },
+        "sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$",
+          "description": "The bound home commit SHA — the trust anchor."
+        }
+      }
+    },
+    "class": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["qualityGates", "codeScanning", "licenseHub"],
+      "properties": {
+        "qualityGates": {
+          "type": "string",
+          "enum": ["full", "linux-only", "pending"]
+        },
+        "codeScanning": {
+          "type": "boolean",
+          "description": "Whether the tenant carries the code-scanning caller."
+        },
+        "licenseHub": {
+          "type": "boolean",
+          "description": "Whether the license-hub family is bound."
+        }
+      }
+    },
+    "callers": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "master", "sha256"],
+        "properties": {
+          "file": {
+            "type": "string",
+            "pattern": "^\\.github/workflows/[a-z0-9-]+\\.yml$"
+          },
+          "master": {
+            "type": "string",
+            "pattern": "^hosting-platforms/github/workflows/callers/[a-z0-9-]+/[a-z0-9-]+\\.yml$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lefthook", "gitattributes", "gitignore", "dependabot"],
+      "properties": {
+        "lefthook": { "$ref": "#/$defs/fileBinding" },
+        "gitattributes": { "$ref": "#/$defs/fileBinding" },
+        "gitignore": { "$ref": "#/$defs/fileBinding" },
+        "dependabot": { "$ref": "#/$defs/fileBinding" }
+      }
+    },
+    "codeowners": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "defaultOwner"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "defaultOwner": { "type": "string", "minLength": 1 }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["config", "schemaVersion"],
+      "properties": {
+        "config": { "type": "string", "minLength": 1 },
+        "schemaVersion": {
+          "const": 3,
+          "description": "The pinned config-seam schema version."
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module", "catalogVersion"],
+      "properties": {
+        "module": { "type": "string", "minLength": 1 },
+        "catalogVersion": {
+          "const": 1,
+          "description": "The pinned canonical tool-catalog version."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "fileBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}
