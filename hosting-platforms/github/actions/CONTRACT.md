@@ -8,7 +8,7 @@ environment outside the full workflow payloads.
 
 | Action | Path | Purpose |
 |---|---|---|
-| `setup-controlled-go` | `.github/actions/setup-controlled-go/action.yml` | Checkout with `persist-credentials: false`, pinned toolchain provisioning from the tenant's configuration seam, and the controlled-toolchain assertion (with optional GOOS/GOARCH assertions) |
+| `setup-controlled-go` | `.github/actions/setup-controlled-go/action.yml` | Checkout with `persist-credentials: false`, pinned toolchain provisioning from the tenant's `go.mod` toolchain directive, and the controlled-toolchain assertion (with optional GOOS/GOARCH assertions) |
 | `verify-canonical-files` | `.github/actions/verify-canonical-files/action.yml` | The composite shell that provisions the controlled toolchain and runs `cmd/verify-canonical` against the calling repository |
 
 ## Binding rules

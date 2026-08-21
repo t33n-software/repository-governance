@@ -48,15 +48,17 @@ bound grants:
 ## The check-context model
 
 A reusable-workflow call surfaces its checks under the composite context
-`<caller job name> / <callee job name>`. The bound names are contract, because
-the shared-line rulesets bind the exact strings:
+`<caller job name> / <callee job name>`. The naming law of the composed era:
+the caller job carries the lane identity (what the lane is), and the callee
+job carries the gate or variant identity (what the gate does). The bound names
+are contract, because the shared-line rulesets bind the exact strings:
 
-| Caller | Caller job name | Callee job name | Emitted contexts |
+| Caller | Caller job name (lane) | Callee job name (gate) | Emitted contexts |
 |---|---|---|---|
-| `ci.yml` | `Quality gates` | `Quality gates (<platform>)` | `Quality gates / Quality gates (linux-amd64)` |
-| `ci-full.yml` | `Quality gates` | `Quality gates (<platform>)` | `Quality gates / Quality gates (linux-amd64)`, `(macos-arm64)`, `(windows-amd64)` |
-| `codeql.yml` | `CodeQL (go)` | `CodeQL (go)` | `CodeQL (go) / CodeQL (go)` |
-| `dependency-review.yml` | `Dependency admission review` | `Dependency admission review` | `Dependency admission review / Dependency admission review` |
+| `ci.yml` | `Quality gates` | the matrix variant | `Quality gates / linux-amd64` |
+| `ci-full.yml` | `Quality gates` | the matrix variant | `Quality gates / linux-amd64`, `Quality gates / macos-arm64`, `Quality gates / windows-amd64` |
+| `codeql.yml` | `CodeQL` | `CodeQL (go)` | `CodeQL / CodeQL (go)` |
+| `dependency-review.yml` | `Dependency review` | `Dependency admission review` | `Dependency review / Dependency admission review` |
 
 The CodeQL merge gate consumes the SARIF result through the `code_scanning`
 ruleset rule (tool-bound, not context-bound); the status-check contexts of the
@@ -66,13 +68,15 @@ line — the activation order is validated sequencing, never assumption.
 
 ## The binding seams
 
-- **Toolchain version.** The payload reads the pinned Go version from the
-  tenant's `git-governance.quality.json` (`toolchain.goVersion`) with a
-  guarded `jq` extraction and passes it to `actions/setup-go`. The
-  `go-version-file` input is deliberately not used: setup-go parses only
-  `go.mod`, `go.work`, `.go-version`, and `.tool-versions` files, and the
-  configuration seam is JSON. The toolchain identity is tenant data, never a
-  workflow edit.
+- **Toolchain version.** The payloads and the controlled-Go setup action
+  provision the pinned toolchain from the tenant's `go.mod` — the Go-native
+  selector that `actions/setup-go` reads through `go-version-file: go.mod`
+  (the `toolchain` directive, with the `go` directive as the platform
+  fallback). The configuration seam's `toolchain.goVersion` remains the
+  assertion authority: the quality gate cross-checks the running toolchain
+  against it fail-closed, and the conformance verifier proves the tenant's
+  `go.mod` carries the directive. The toolchain identity is tenant data at
+  its native place — never a workflow edit, never a JSON extraction shim.
 - **Quality gate.** The CI payload runs `go tool -modfile tools/go.mod
   quality-gate`; the tool pin resolves through the tenant's tooling module
   (class-D consumption).

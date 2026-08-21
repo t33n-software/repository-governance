@@ -22,11 +22,11 @@ does not rely on any external governance repository or unpublished rule set.
 
 | Capability | Status | Verification |
 |---|---|---|
-| Reusable workflow payloads | VERIFIED | `reusable-ci-go`, `reusable-codeql-go`, and `reusable-dependency-review` carry only `on: workflow_call`, full-length SHA-pinned actions, the permission matrix, and bounded execution; contract-test set |
+| Reusable workflow payloads | VERIFIED | `reusable-ci-go`, `reusable-codeql-go`, and `reusable-dependency-review` carry only `on: workflow_call`, full-length SHA-pinned actions, the permission matrix, bounded execution, the gate job names, and Go-native toolchain provisioning from the tenant `go.mod`; contract-test set |
 | Composite actions | VERIFIED | `setup-controlled-go` and `verify-canonical-files` carry the controlled-toolchain and verifier shells; contract-test set |
 | Canonical callers | VERIFIED | the four hash-pinned masters cover every shared line with the exact job names and grants; byte-identity with the home's own callers is proven by the contract-test set |
 | Canonical file family | VERIFIED | `files/{gitattributes,gitignore,lefthook,dependabot,codeowners}` carry the canonical content; contract-test set |
-| Conformance verifier | VERIFIED | `cmd/verify-canonical` proves caller hashes and pins, canonical files, CODEOWNERS materialization, config-seam conformance, tool-pin admission, and license-lane wiring fail-closed; same-package whitebox tests |
+| Conformance verifier | VERIFIED | `cmd/verify-canonical` proves caller hashes and pins, canonical files, CODEOWNERS materialization, config-seam conformance, the `go.mod` toolchain-directive guard, tool-pin admission, and license-lane wiring fail-closed; same-package whitebox tests |
 | Verifier schemas | VERIFIED | `schemas/repo-bindings/v1/` and `schemas/caller-hashes/v1/` strictly decoded; conformance vectors prove every acceptance and rejection |
 | Boundary fuzzing | VERIFIED | `FuzzDecodeBindings` fuzzes the binding-manifest decoder |
 | Dogfooding | VERIFIED | the home's own callers are byte-identical to the masters; `go tool -modfile tools/go.mod quality-gate` runs the canonical gate set against this repository |

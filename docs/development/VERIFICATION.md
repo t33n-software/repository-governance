@@ -38,14 +38,17 @@ On a tenant pull request it proves, fail-closed:
 2. the tenant's `git-governance.quality.json` strictly decodes and carries the
    pinned schema version (the semantic gate rules are owned by the producer
    home that executes the gate);
-3. the canonical file family matches the bound hashes — byte-identical for
+3. the tenant's `go.mod` carries an explicit, well-formed `toolchain`
+   directive — the Go-native selector the payloads and the controlled-Go
+   setup action provision through `go-version-file: go.mod`;
+4. the canonical file family matches the bound hashes — byte-identical for
    `lefthook.yml`, `.gitattributes`, and `dependabot.yml`, and the canonical
    core as a verbatim prefix for `.gitignore`;
-4. `.github/CODEOWNERS` is the exact materialization of the canonical template
+5. `.github/CODEOWNERS` is the exact materialization of the canonical template
    with the manifest's values;
-5. every tool pin in the tenant's tooling module is admitted by the canonical
+6. every tool pin in the tenant's tooling module is admitted by the canonical
    tool catalog or is the home's own verifier tool;
-6. where the license-hub family is bound, the license binding values and lock
+7. where the license-hub family is bound, the license binding values and lock
    exist and decode as JSON documents.
 
 The tenant's binding manifest (`repo-bindings.json`) is strictly decoded
@@ -60,14 +63,16 @@ rejection of the manifest decoder.
 home change it proves: the payloads carry only `on: workflow_call`, every
 action reference is a full-length commit SHA with a version comment, the
 permission matrix per lane, the absence of forbidden patterns
-(`pull_request_target`, workflow-level `GOFLAGS`, `cache: true`), the callers'
+(`pull_request_target`, workflow-level `GOFLAGS`, `cache: true`), the
+Go-native toolchain provisioning (`go-version-file: go.mod`, no JSON
+extraction shim) and the gate job names of the payloads, the callers'
 four-shared-line trigger coverage and exact job names, the byte identity
 between the home's own callers and the canonical masters, the caller-hashes
 record against the recomputed master content, the canonical file family, the
 CODEOWNERS template and its materialization, the schema conformance, the
-conformance vectors, the home's own binding manifest self-consistency, and
-the absence of legacy artifacts (`_BAK` files, JSON payload copies in
-`docs/`).
+conformance vectors, the home's own binding manifest self-consistency, the
+home's own `go.mod` toolchain directive, and the absence of legacy artifacts
+(`_BAK` files, JSON payload copies in `docs/`).
 
 ## Whitebox testing
 

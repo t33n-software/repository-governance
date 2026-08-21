@@ -44,6 +44,7 @@ func (v Verifier) Verify(ctx context.Context, bindings Bindings) []Finding {
 	findings = append(findings, v.verifyFiles(bindings)...)
 	findings = append(findings, v.verifyCodeowners(bindings)...)
 	findings = append(findings, v.verifyQuality(bindings)...)
+	findings = append(findings, v.verifyToolchain()...)
 	findings = append(findings, v.verifyTools(ctx, bindings)...)
 	findings = append(findings, v.verifyLicense(bindings)...)
 	return findings

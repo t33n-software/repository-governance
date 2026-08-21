@@ -175,6 +175,40 @@ func TestPayloadsAreOrganizationAgnostic(t *testing.T) {
 	}
 }
 
+func TestPayloadsProvisionTheToolchainFromGoMod(t *testing.T) {
+	goArtifacts := []string{
+		".github/workflows/reusable-ci-go.yml",
+		".github/workflows/reusable-codeql-go.yml",
+		".github/actions/setup-controlled-go/action.yml",
+	}
+	for _, artifact := range goArtifacts {
+		t.Run(filepath.Base(artifact), func(t *testing.T) {
+			content := readArtifact(t, artifact)
+			if !strings.Contains(content, "go-version-file: go.mod") {
+				t.Fatalf("%s must provision the toolchain from the tenant go.mod", artifact)
+			}
+			if strings.Contains(content, "jq") {
+				t.Fatalf("%s must not carry the JSON extraction shim", artifact)
+			}
+		})
+	}
+}
+
+func TestPayloadsCarryTheGateJobNames(t *testing.T) {
+	expectations := map[string]string{
+		".github/workflows/reusable-ci-go.yml":             "name: ${{ matrix.name }}",
+		".github/workflows/reusable-codeql-go.yml":         "name: CodeQL (go)",
+		".github/workflows/reusable-dependency-review.yml": "name: Dependency admission review",
+	}
+	for payload, jobName := range expectations {
+		t.Run(filepath.Base(payload), func(t *testing.T) {
+			if !strings.Contains(readArtifact(t, payload), jobName) {
+				t.Fatalf("%s must carry the gate job name %q", payload, jobName)
+			}
+		})
+	}
+}
+
 func TestCallersReferenceTheHomePayloadsBySHA(t *testing.T) {
 	for _, caller := range callers {
 		t.Run(filepath.Base(caller), func(t *testing.T) {
@@ -383,6 +417,12 @@ func TestHomeBindingsAreSelfConsistent(t *testing.T) {
 		if !strings.Contains(contents, "@"+bindings.Home.SHA) {
 			t.Fatalf("the home's own caller %s does not reference the bound home SHA", caller.File)
 		}
+	}
+}
+
+func TestHomeGoModCarriesTheToolchainDirective(t *testing.T) {
+	if _, err := canonical.ToolchainDirective([]byte(readArtifact(t, "go.mod"))); err != nil {
+		t.Fatalf("the home go.mod must carry the toolchain directive: %v", err)
 	}
 }
 
