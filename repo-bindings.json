@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "home": {
     "repository": "t33n-software/repository-governance",
-    "sha": "89be739ee8a1d1ed6ebbe97dd1556a253477d242"
+    "sha": "842c23028f0635a6478b727248033731693139a4"
   },
   "class": {
     "qualityGates": "linux-only",
@@ -13,17 +13,17 @@
     {
       "file": ".github/workflows/ci.yml",
       "master": "hosting-platforms/github/workflows/callers/go/ci.yml",
-      "sha256": "f29a65bd73fe575b159123a9d4bebed86ab4eebe3c5dc5dac31c96e7fb7c4c4a"
+      "sha256": "499f438357ed3c74b73abf5a15cb19e45f14fc420521a469bd8395dd6936eb44"
     },
     {
       "file": ".github/workflows/codeql.yml",
       "master": "hosting-platforms/github/workflows/callers/go/codeql.yml",
-      "sha256": "8fbf970fa214306a967ca0c3d0043f5a88b69c270b4690e2c8ff2b3a414d4d21"
+      "sha256": "425429f316f7d7dfd85958fd75e7953eb69a032927a8b14bc343b20abd7d3b5a"
     },
     {
       "file": ".github/workflows/dependency-review.yml",
       "master": "hosting-platforms/github/workflows/callers/go/dependency-review.yml",
-      "sha256": "58e8354e724039316adb5e1eac4e523037d36c5e68096e9f91bdffcbfb1def06"
+      "sha256": "d750f5d3e891de3f2cd8c0d6763bc78d1b1e537ce937b703b726177ddc6afb12"
     }
   ],
   "files": {

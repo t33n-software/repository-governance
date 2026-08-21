@@ -8,7 +8,7 @@ permissions: {}
 
 jobs:
   dependency-review:
-    name: Dependency admission review
+    name: Dependency review
     permissions:
       contents: read
-    uses: t33n-software/repository-governance/.github/workflows/reusable-dependency-review.yml@89be739ee8a1d1ed6ebbe97dd1556a253477d242
+    uses: t33n-software/repository-governance/.github/workflows/reusable-dependency-review.yml@842c23028f0635a6478b727248033731693139a4

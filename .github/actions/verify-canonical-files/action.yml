@@ -13,7 +13,7 @@ runs:
   using: composite
   steps:
     - name: Set up controlled Go
-      uses: t33n-software/repository-governance/.github/actions/setup-controlled-go@89be739ee8a1d1ed6ebbe97dd1556a253477d242
+      uses: t33n-software/repository-governance/.github/actions/setup-controlled-go@842c23028f0635a6478b727248033731693139a4
 
     - name: Run the canonical conformance verifier
       shell: bash

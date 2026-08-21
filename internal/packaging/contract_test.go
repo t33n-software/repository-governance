@@ -237,10 +237,10 @@ func TestCallersReferenceTheHomePayloadsBySHA(t *testing.T) {
 
 func TestCallersCarryTheExactJobNamesAndGrants(t *testing.T) {
 	expectations := map[string][]string{
-		"hosting-platforms/github/workflows/callers/go/ci.yml":                {"name: Quality gates", "quality_class: linux-only", "contents: read"},
-		"hosting-platforms/github/workflows/callers/go/ci-full.yml":           {"name: Quality gates", "quality_class: full", "contents: read"},
-		"hosting-platforms/github/workflows/callers/go/codeql.yml":            {"name: CodeQL (go)", "actions: read", "contents: read", "security-events: write"},
-		"hosting-platforms/github/workflows/callers/go/dependency-review.yml": {"name: Dependency admission review", "contents: read"},
+		"hosting-platforms/github/workflows/callers/go/ci.yml":                {"  quality:\n    name: Quality gates\n", "quality_class: linux-only", "contents: read"},
+		"hosting-platforms/github/workflows/callers/go/ci-full.yml":           {"  quality:\n    name: Quality gates\n", "quality_class: full", "contents: read"},
+		"hosting-platforms/github/workflows/callers/go/codeql.yml":            {"  analyze:\n    name: CodeQL\n", "actions: read", "contents: read", "security-events: write"},
+		"hosting-platforms/github/workflows/callers/go/dependency-review.yml": {"  dependency-review:\n    name: Dependency review\n", "contents: read"},
 	}
 	for caller, required := range expectations {
 		t.Run(filepath.Base(caller), func(t *testing.T) {
