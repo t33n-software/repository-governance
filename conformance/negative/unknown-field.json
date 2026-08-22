@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "bogus": true,
+  "home": {
+    "repository": "t33n-software/repository-governance",
+    "sha": "89be739ee8a1d1ed6ebbe97dd1556a253477d242"
+  },
+  "class": {
+    "qualityGates": "linux-only",
+    "codeScanning": true,
+    "licenseHub": false
+  },
+  "callers": [
+    {
+      "file": ".github/workflows/ci.yml",
+      "master": "hosting-platforms/github/workflows/callers/go/ci.yml",
+      "sha256": "f29a65bd73fe575b159123a9d4bebed86ab4eebe3c5dc5dac31c96e7fb7c4c4a"
+    }
+  ],
+  "files": {
+    "lefthook": { "path": "lefthook.yml", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+    "gitattributes": { "path": ".gitattributes", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
+    "gitignore": { "path": ".gitignore", "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" },
+    "dependabot": { "path": ".github/dependabot.yml", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" }
+  },
+  "codeowners": { "path": ".github/CODEOWNERS", "defaultOwner": "@CyberT33N" },
+  "quality": { "config": "git-governance.quality.json", "schemaVersion": 3 },
+  "tools": { "module": "tools/go.mod", "catalogVersion": 1 }
+}
