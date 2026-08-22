@@ -30,3 +30,5 @@ does not rely on any external governance repository or unpublished rule set.
 | Verifier schemas | VERIFIED | `schemas/repo-bindings/v1/` and `schemas/caller-hashes/v1/` strictly decoded; conformance vectors prove every acceptance and rejection |
 | Boundary fuzzing | VERIFIED | `FuzzDecodeBindings` fuzzes the binding-manifest decoder |
 | Dogfooding | VERIFIED | the home's own callers are byte-identical to the masters; `go tool -modfile tools/go.mod quality-gate` runs the canonical gate set against this repository |
+| Release lifecycle adoption | VERIFIED | the seven lifecycle callers under `.github/workflows/` are byte-identical to the canonical masters of `t33n-software/git-governance` and hash-match `caller-hashes.json` (LF-normalized) |
+| Governance CLI tool channel | VERIFIED | `tools/go.mod` pins `github.com/t33n-software/git-governance/cmd/git-governance`; `go build -modfile tools/go.mod` proves the lane build |
