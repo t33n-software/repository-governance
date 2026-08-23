@@ -17,12 +17,16 @@ import (
 // territory home.
 type ToolCatalog struct {
 	SchemaVersion int
-	Packages      []string
+	// Schema is the catalog's bound schema identity (the $schema reference),
+	// asserted against the canonical identity and never dereferenced.
+	Schema   string
+	Packages []string
 }
 
 // toolCatalogDocument is the wire form of the canonical tool catalog.
 type toolCatalogDocument struct {
-	SchemaVersion int `json:"schemaVersion"`
+	Schema        string `json:"$schema"`
+	SchemaVersion int   `json:"schemaVersion"`
 	Tools         []struct {
 		Name    string `json:"name"`
 		Module  string `json:"module"`
@@ -49,6 +53,9 @@ func DecodeToolCatalog(contents []byte) (ToolCatalog, error) {
 	if document.SchemaVersion != 1 {
 		return ToolCatalog{}, fmt.Errorf("tool catalog schemaVersion must equal %d", 1)
 	}
+	if strings.TrimSpace(document.Schema) == "" {
+		return ToolCatalog{}, errors.New("tool catalog must carry the $schema identity")
+	}
 	packages := make([]string, 0, len(document.Tools))
 	seen := make(map[string]struct{}, len(document.Tools))
 	for _, tool := range document.Tools {
@@ -61,7 +68,7 @@ func DecodeToolCatalog(contents []byte) (ToolCatalog, error) {
 		seen[tool.Package] = struct{}{}
 		packages = append(packages, tool.Package)
 	}
-	return ToolCatalog{SchemaVersion: document.SchemaVersion, Packages: packages}, nil
+	return ToolCatalog{SchemaVersion: document.SchemaVersion, Schema: document.Schema, Packages: packages}, nil
 }
 
 // ToolDirectives parses the tool directives of a Go tooling module
@@ -129,6 +136,12 @@ func UnadmittedTools(tools []string, catalog ToolCatalog, homeToolPackage string
 // that owns the canonical tool catalog.
 const qualityAuthorityModule = "github.com/t33n-software/go-quality-authority"
 
+// canonicalCatalogSchemaID is the canonical identity of the tool catalog
+// schema, owned by the language territory home. The verifier asserts the
+// catalog's $schema reference against it fail-closed; the reference is an
+// identity binding and is never dereferenced by any governed path.
+const canonicalCatalogSchemaID = "https://raw.githubusercontent.com/t33n-software/go-quality-authority/main/catalog/tools.schema.json"
+
 // verifyTools proves every tool pin of the tenant's tooling module is admitted
 // by the canonical catalog or is the home's own verifier tool. A tenant
 // without a tooling module carries no pins to admit — the check is vacuously
@@ -164,6 +177,10 @@ func (v Verifier) verifyTools(ctx context.Context, bindings Bindings) []Finding 
 	catalog, err := DecodeToolCatalog(catalogContents)
 	if err != nil {
 		return []Finding{mismatchFinding(check, err.Error())}
+	}
+	if catalog.Schema != canonicalCatalogSchemaID {
+		return []Finding{mismatchFinding(check,
+			fmt.Sprintf("the tool catalog schema identity %q diverges from the canonical %q", catalog.Schema, canonicalCatalogSchemaID))}
 	}
 
 	homeTool, err := v.homeToolPackage()

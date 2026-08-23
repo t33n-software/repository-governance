@@ -2,6 +2,8 @@ package canonical
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -51,11 +53,11 @@ func canonicalFileBindings() FileBindings {
 func passingFilesFixture() filesFixture {
 	return filesFixture{
 		homeContents: map[string][]byte{
-			"files/lefthook/lefthook.yml":           []byte("lefthook-core"),
-			"files/gitattributes/.gitattributes":    []byte("gitattributes-core"),
-			"files/gitignore/.gitignore":            []byte("gitignore-core\n# -- project additions below this line --\n"),
-			"files/dependabot/dependabot-go.yml":    []byte("dependabot-core"),
-			"files/codeowners/CODEOWNERS.tmpl":      []byte("# contract\n\n* {{defaultOwner}}\n"),
+			"hosting-platforms/github/files/lefthook/lefthook.yml":        []byte("lefthook-core"),
+			"hosting-platforms/github/files/gitattributes/.gitattributes": []byte("gitattributes-core"),
+			"hosting-platforms/github/files/gitignore/.gitignore":         []byte("gitignore-core\n# -- project additions below this line --\n"),
+			"hosting-platforms/github/files/dependabot/dependabot-go.yml": []byte("dependabot-core"),
+			"hosting-platforms/github/files/codeowners/CODEOWNERS.tmpl":   []byte("# contract\n\n* {{defaultOwner}}\n"),
 		},
 		tenantContents: map[string][]byte{
 			"lefthook.yml":           []byte("lefthook-core"),
@@ -85,7 +87,7 @@ func TestVerifyFilesHomeReadError(t *testing.T) {
 
 func TestVerifyFilesHomeHashMismatch(t *testing.T) {
 	fixture := passingFilesFixture()
-	fixture.homeContents["files/lefthook/lefthook.yml"] = []byte("drifted")
+	fixture.homeContents["hosting-platforms/github/files/lefthook/lefthook.yml"] = []byte("drifted")
 	findings := fixture.verifier().verifyFiles(Bindings{Files: canonicalFileBindings()})
 	assertFindingContains(t, findings, "the canonical lefthook hash")
 }
@@ -144,7 +146,7 @@ func TestVerifyCodeowners(t *testing.T) {
 
 	t.Run("template without token", func(t *testing.T) {
 		fixture := passingFilesFixture()
-		fixture.homeContents["files/codeowners/CODEOWNERS.tmpl"] = []byte("* @someone\n")
+		fixture.homeContents["hosting-platforms/github/files/codeowners/CODEOWNERS.tmpl"] = []byte("* @someone\n")
 		findings := fixture.verifier().verifyCodeowners(bindings)
 		assertFindingContains(t, findings, "carries no")
 	})
@@ -162,4 +164,21 @@ func TestVerifyCodeowners(t *testing.T) {
 		findings := fixture.verifier().verifyCodeowners(bindings)
 		assertFindingContains(t, findings, "not the materialization")
 	})
+}
+
+// TestVerifierHomePathsExistInTheHomeLayout binds the verifier's home-relative
+// paths to the real home layout: a path that drifts from the repository tree
+// fails closed instead of silently reading nothing at verification time.
+func TestVerifierHomePathsExistInTheHomeLayout(t *testing.T) {
+	root := filepath.Join("..", "..")
+	for _, topic := range fileTopics {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(topic.homePath))); err != nil {
+			t.Fatalf("the verifier home path %q does not exist in the home layout: %v", topic.homePath, err)
+		}
+	}
+	for _, path := range []string{codeownersTemplatePath, callerHashesPath} {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(path))); err != nil {
+			t.Fatalf("the verifier home path %q does not exist in the home layout: %v", path, err)
+		}
+	}
 }

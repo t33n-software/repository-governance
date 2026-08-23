@@ -30,6 +30,9 @@ conformance":
 go tool -modfile tools/go.mod verify-canonical --repo .
 ```
 
+The flag parser accepts both the space-separated form shown above and the
+`--repo=<path>` assignment form; a flag without a value is a usage error.
+
 On a tenant pull request it proves, fail-closed:
 
 1. every declared caller file's SHA-256 equals the bound hash, the canonical
@@ -46,8 +49,10 @@ On a tenant pull request it proves, fail-closed:
    core as a verbatim prefix for `.gitignore`;
 5. `.github/CODEOWNERS` is the exact materialization of the canonical template
    with the manifest's values;
-6. every tool pin in the tenant's tooling module is admitted by the canonical
-   tool catalog or is the home's own verifier tool;
+6. the canonical tool catalog carries its bound `$schema` identity — asserted
+   against the canonical catalog schema identity, never dereferenced — and
+   every tool pin in the tenant's tooling module is admitted by the catalog or
+   is the home's own verifier tool;
 7. where the license-hub family is bound, the license binding values and lock
    exist and decode as JSON documents.
 
