@@ -6,7 +6,7 @@ import (
 )
 
 // codeownersTemplatePath is the home-relative path of the ownership template.
-const codeownersTemplatePath = "files/codeowners/CODEOWNERS.tmpl"
+const codeownersTemplatePath = "hosting-platforms/github/files/codeowners/CODEOWNERS.tmpl"
 
 // codeownersToken is the render token the template carries for the default
 // owner value.
@@ -19,10 +19,10 @@ var fileTopics = []struct {
 	binding   func(FileBindings) FileBinding
 	prefixMode bool
 }{
-	{topic: "lefthook", homePath: "files/lefthook/lefthook.yml", binding: func(f FileBindings) FileBinding { return f.Lefthook }},
-	{topic: "gitattributes", homePath: "files/gitattributes/.gitattributes", binding: func(f FileBindings) FileBinding { return f.Gitattributes }},
-	{topic: "gitignore", homePath: "files/gitignore/.gitignore", binding: func(f FileBindings) FileBinding { return f.Gitignore }, prefixMode: true},
-	{topic: "dependabot", homePath: "files/dependabot/dependabot-go.yml", binding: func(f FileBindings) FileBinding { return f.Dependabot }},
+	{topic: "lefthook", homePath: "hosting-platforms/github/files/lefthook/lefthook.yml", binding: func(f FileBindings) FileBinding { return f.Lefthook }},
+	{topic: "gitattributes", homePath: "hosting-platforms/github/files/gitattributes/.gitattributes", binding: func(f FileBindings) FileBinding { return f.Gitattributes }},
+	{topic: "gitignore", homePath: "hosting-platforms/github/files/gitignore/.gitignore", binding: func(f FileBindings) FileBinding { return f.Gitignore }, prefixMode: true},
+	{topic: "dependabot", homePath: "hosting-platforms/github/files/dependabot/dependabot-go.yml", binding: func(f FileBindings) FileBinding { return f.Dependabot }},
 }
 
 // verifyFiles proves the canonical file family: byte-identical topics compare
