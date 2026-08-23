@@ -9,7 +9,12 @@ import (
 )
 
 func catalogJSON() string {
+	return catalogJSONWithSchema("https://raw.githubusercontent.com/t33n-software/go-quality-authority/main/catalog/tools.schema.json")
+}
+
+func catalogJSONWithSchema(schema string) string {
 	return `{
+  "$schema": "` + schema + `",
   "schemaVersion": 1,
   "tools": [
     { "name": "staticcheck", "module": "honnef.co/go/tools", "package": "honnef.co/go/tools/cmd/staticcheck", "purpose": "static analysis" },
@@ -26,6 +31,9 @@ func TestDecodeToolCatalog(t *testing.T) {
 	if catalog.SchemaVersion != 1 {
 		t.Fatalf("SchemaVersion = %d", catalog.SchemaVersion)
 	}
+	if catalog.Schema != "https://raw.githubusercontent.com/t33n-software/go-quality-authority/main/catalog/tools.schema.json" {
+		t.Fatalf("Schema = %q", catalog.Schema)
+	}
 	if len(catalog.Packages) != 2 {
 		t.Fatalf("Packages = %v", catalog.Packages)
 	}
@@ -39,10 +47,12 @@ func TestDecodeToolCatalogRejections(t *testing.T) {
 		{name: "empty", doc: ``},
 		{name: "not json", doc: `not json`},
 		{name: "trailing document", doc: catalogJSON() + ` {}`},
-		{name: "wrong schema version", doc: `{"schemaVersion":2,"tools":[]}`},
-		{name: "unknown field", doc: `{"schemaVersion":1,"tools":[],"bogus":true}`},
-		{name: "incomplete entry", doc: `{"schemaVersion":1,"tools":[{"name":"x","module":"","package":"p","purpose":"q"}]}`},
-		{name: "duplicate package", doc: `{"schemaVersion":1,"tools":[{"name":"a","module":"m","package":"p","purpose":"q"},{"name":"b","module":"m","package":"p","purpose":"q"}]}`},
+		{name: "wrong schema version", doc: `{"$schema":"https://raw.githubusercontent.com/t33n-software/go-quality-authority/main/catalog/tools.schema.json","schemaVersion":2,"tools":[]}`},
+		{name: "unknown field", doc: `{"$schema":"https://raw.githubusercontent.com/t33n-software/go-quality-authority/main/catalog/tools.schema.json","schemaVersion":1,"tools":[],"bogus":true}`},
+		{name: "missing schema identity", doc: `{"schemaVersion":1,"tools":[]}`},
+		{name: "empty schema identity", doc: `{"$schema":"  ","schemaVersion":1,"tools":[]}`},
+		{name: "incomplete entry", doc: `{"$schema":"https://raw.githubusercontent.com/t33n-software/go-quality-authority/main/catalog/tools.schema.json","schemaVersion":1,"tools":[{"name":"x","module":"","package":"p","purpose":"q"}]}`},
+		{name: "duplicate package", doc: `{"$schema":"https://raw.githubusercontent.com/t33n-software/go-quality-authority/main/catalog/tools.schema.json","schemaVersion":1,"tools":[{"name":"a","module":"m","package":"p","purpose":"q"},{"name":"b","module":"m","package":"p","purpose":"q"}]}`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -233,6 +243,19 @@ func TestVerifyToolsHomeModuleError(t *testing.T) {
 	}
 	findings := fixture.verifier().verifyTools(context.Background(), verifyToolsBindings())
 	if len(findings) != 1 || !strings.Contains(findings[0].Detail, "home module") {
+		t.Fatalf("findings = %v", findings)
+	}
+}
+
+func TestVerifyToolsSchemaIdentityMismatch(t *testing.T) {
+	fixture := toolsFixture{
+		moduleContents:  []byte("tool honnef.co/go/tools/cmd/staticcheck\n"),
+		resolveDir:      "gqa",
+		catalogContents: []byte(catalogJSONWithSchema("https://example.com/drifted/tools.schema.json")),
+		homeGoMod:       []byte("module github.com/t33n-software/repository-governance\n"),
+	}
+	findings := fixture.verifier().verifyTools(context.Background(), verifyToolsBindings())
+	if len(findings) != 1 || !strings.Contains(findings[0].Detail, "diverges from the canonical") {
 		t.Fatalf("findings = %v", findings)
 	}
 }
