@@ -29,6 +29,47 @@ func TestRunUsageError(t *testing.T) {
 	}
 }
 
+func TestRunAcceptsTheSpaceSeparatedFlagForm(t *testing.T) {
+	// The composite action invokes the space-separated form; the read error
+	// against an empty directory proves the flag was accepted.
+	var stdout, stderr strings.Builder
+	code := run(context.Background(), []string{"--repo", t.TempDir()}, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("run with the space-separated flag form = %d, want 1", code)
+	}
+	if !strings.Contains(stderr.String(), "repo-bindings.json") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestRunRejectsAMissingFlagValue(t *testing.T) {
+	var stdout, stderr strings.Builder
+	if code := run(context.Background(), []string{"--repo"}, &stdout, &stderr); code != 2 {
+		t.Fatalf("run with a missing flag value = %d, want 2", code)
+	}
+	if !strings.Contains(stderr.String(), "usage:") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestRunSuccessWithTheSpaceSeparatedForm(t *testing.T) {
+	defer func() { verify = verifyTenant }()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "repo-bindings.json"), []byte(minimalBindings()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	verify = func(ctx context.Context, verifier canonical.Verifier, bindings canonical.Bindings) []canonical.Finding {
+		return nil
+	}
+	var stdout, stderr strings.Builder
+	if code := run(context.Background(), []string{"--repo", dir, "--home", t.TempDir()}, &stdout, &stderr); code != 0 {
+		t.Fatalf("run = %d, want 0 (stderr: %s)", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "PASS") {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
 func TestRunManifestReadError(t *testing.T) {
 	var stdout, stderr strings.Builder
 	code := run(context.Background(), []string{"--repo=" + t.TempDir()}, &stdout, &stderr)
