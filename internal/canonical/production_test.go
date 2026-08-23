@@ -100,6 +100,76 @@ func TestResolveModuleDir(t *testing.T) {
 	})
 }
 
+func TestResolveModuleDirDownloadsBeforeResolving(t *testing.T) {
+	defer func() { execOutput = commandOutput }()
+
+	type call struct {
+		name string
+		args []string
+	}
+	var calls []call
+	execOutput = func(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
+		if dir != "tools" {
+			t.Fatalf("dir = %q", dir)
+		}
+		calls = append(calls, call{name: name, args: append([]string(nil), args...)})
+		return []byte("/cache/module\n"), nil
+	}
+
+	dir, err := ResolveModuleDir(context.Background(), "tools", "example.com/mod")
+	if err != nil {
+		t.Fatalf("ResolveModuleDir: %v", err)
+	}
+	if dir != "/cache/module" {
+		t.Fatalf("dir = %q", dir)
+	}
+	if len(calls) != 2 {
+		t.Fatalf("calls = %d", len(calls))
+	}
+	if got := strings.Join(calls[0].args, " "); calls[0].name != "go" || got != "mod download example.com/mod" {
+		t.Fatalf("first call = %s %s", calls[0].name, got)
+	}
+	if got := strings.Join(calls[1].args, " "); calls[1].name != "go" || got != "list -m -f {{.Dir}} example.com/mod" {
+		t.Fatalf("second call = %s %s", calls[1].name, got)
+	}
+}
+
+func TestResolveModuleDirDownloadFailureFailsClosed(t *testing.T) {
+	defer func() { execOutput = commandOutput }()
+
+	var listCalled bool
+	execOutput = func(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
+		if len(args) > 0 && args[0] == "list" {
+			listCalled = true
+		}
+		return []byte("network unreachable"), errors.New("exit 1")
+	}
+
+	_, err := ResolveModuleDir(context.Background(), "tools", "example.com/mod")
+	if err == nil || !strings.Contains(err.Error(), "go mod download") || !strings.Contains(err.Error(), "network unreachable") {
+		t.Fatalf("err = %v", err)
+	}
+	if listCalled {
+		t.Fatal("the directory query must not run after a failed download")
+	}
+}
+
+func TestResolveModuleDirListFailureAfterDownload(t *testing.T) {
+	defer func() { execOutput = commandOutput }()
+
+	execOutput = func(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
+		if len(args) > 0 && args[0] == "list" {
+			return []byte("module lookup failed"), errors.New("exit 1")
+		}
+		return []byte(""), nil
+	}
+
+	_, err := ResolveModuleDir(context.Background(), "tools", "example.com/mod")
+	if err == nil || !strings.Contains(err.Error(), "go list -m") || !strings.Contains(err.Error(), "module lookup failed") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func TestCommandOutputRealCommand(t *testing.T) {
 	// The real process seam is exercised with a harmless toolchain query.
 	output, err := commandOutput(context.Background(), ".", "go", "version")

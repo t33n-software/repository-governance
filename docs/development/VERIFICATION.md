@@ -33,6 +33,13 @@ go tool -modfile tools/go.mod verify-canonical --repo .
 The flag parser accepts both the space-separated form shown above and the
 `--repo=<path>` assignment form; a flag without a value is a usage error.
 
+The verifier is environment-self-sufficient: it provisions every module it
+reads (its own home module and the canonical catalog module) through the
+tenant's integrity-pinned tooling channel and never trusts a warm module
+cache, so it runs identically in cold-cache CI lanes. The bound mechanism
+and its regression evidence are the convention
+`docs/conventions/verification/self-sufficient-module-resolution.md`.
+
 On a tenant pull request it proves, fail-closed:
 
 1. every declared caller file's SHA-256 equals the bound hash, the canonical

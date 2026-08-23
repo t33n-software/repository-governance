@@ -164,6 +164,10 @@ func (v Verifier) verifyTools(ctx context.Context, bindings Bindings) []Finding 
 		return nil
 	}
 
+	// The catalog module is obtained through the self-sufficient module
+	// resolution: the verifier provisions it through the tenant's
+	// integrity-pinned tooling channel and never trusts a warm cache.
+	// Convention: docs/conventions/verification/self-sufficient-module-resolution.md
 	toolsDir := path.Dir(bindings.Tools.Module)
 	catalogDir, err := v.ResolveModule(ctx, filepath.Join(v.TenantRoot, toolsDir), qualityAuthorityModule)
 	if err != nil {
