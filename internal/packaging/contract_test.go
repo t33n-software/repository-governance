@@ -361,8 +361,8 @@ func TestCodeownersTemplateAndMaterialization(t *testing.T) {
 
 func TestSchemasConform(t *testing.T) {
 	schemas := []string{
-		"schemas/repo-bindings/v1/schema.json",
-		"schemas/caller-hashes/v1/schema.json",
+		"schemas/repo-bindings/v1/repo-bindings.schema.json",
+		"schemas/caller-hashes/v1/caller-hashes.schema.json",
 	}
 	for _, schema := range schemas {
 		t.Run(schema, func(t *testing.T) {

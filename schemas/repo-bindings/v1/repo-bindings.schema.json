@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/t33n-software/repository-governance/main/schemas/repo-bindings/v1/schema.json",
+  "$id": "https://raw.githubusercontent.com/t33n-software/repository-governance/main/schemas/repo-bindings/v1/repo-bindings.schema.json",
   "title": "Repository Bindings Manifest",
   "description": "The canonical tenant binding manifest (repo-bindings.json). It records the home pin, the fleet classes, the bound callers with their hashes, the canonical file bindings, the CODEOWNERS render values, the config-seam pin, and the tooling-module pin. The schema is owned by the repository-governance home, strictly decoded, and proven by conformance vectors.",
   "type": "object",

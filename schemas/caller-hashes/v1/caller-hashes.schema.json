@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/t33n-software/repository-governance/main/schemas/caller-hashes/v1/schema.json",
+  "$id": "https://raw.githubusercontent.com/t33n-software/repository-governance/main/schemas/caller-hashes/v1/caller-hashes.schema.json",
   "title": "Caller Hashes Record",
   "description": "The canonical caller-hash record published by the repository-governance home (caller-hashes.json). It binds every canonical caller master to its tenant file, its class variant, and its SHA-256. The schema is owned by the repository-governance home, strictly decoded, and proven by the contract-test set.",
   "type": "object",
