@@ -57,10 +57,12 @@ On a tenant pull request it proves, fail-closed:
    exist and decode as JSON documents.
 
 The tenant's binding manifest (`repo-bindings.json`) is strictly decoded
-against `schemas/repo-bindings/v1/schema.json`; the home's published caller
-hashes follow `schemas/caller-hashes/v1/schema.json`; the
+against `schemas/repo-bindings/v1/repo-bindings.schema.json`; the home's
+published caller hashes follow
+`schemas/caller-hashes/v1/caller-hashes.schema.json`; the
 `conformance/{positive,negative}/` vectors prove every acceptance and every
-rejection of the manifest decoder.
+rejection of the manifest decoder. Every schema document carries the
+`.schema.json` suffix — the canonical naming convention for schema files.
 
 ## The contract-test set
 
