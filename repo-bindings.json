@@ -33,6 +33,6 @@
     "dependabot": { "path": ".github/dependabot.yml", "sha256": "a28369d1dc1b8eb6cdcef8405fccca644a509fc640fdc8ab3f12adbc0291940a" }
   },
   "codeowners": { "path": ".github/CODEOWNERS", "defaultOwner": "@CyberT33N" },
-  "quality": { "config": "git-governance.quality.json", "schemaVersion": 3 },
+  "quality": { "config": "git-governance.quality.json", "schemaVersion": 4 },
   "tools": { "module": "tools/go.mod", "catalogVersion": 1 }
 }
