@@ -193,7 +193,7 @@ func minimalBindings() string {
     "dependabot": { "path": ".github/dependabot.yml", "sha256": "` + strings.Repeat("d", 64) + `" }
   },
   "codeowners": { "path": ".github/CODEOWNERS", "defaultOwner": "@CyberT33N" },
-  "quality": { "config": "git-governance.quality.json", "schemaVersion": 3 },
+  "quality": { "config": "git-governance.quality.json", "schemaVersion": 4 },
   "tools": { "module": "tools/go.mod", "catalogVersion": 1 }
 }`
 }

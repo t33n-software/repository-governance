@@ -103,7 +103,7 @@
       "properties": {
         "config": { "type": "string", "minLength": 1 },
         "schemaVersion": {
-          "const": 3,
+          "const": 4,
           "description": "The pinned config-seam schema version."
         }
       }
