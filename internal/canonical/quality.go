@@ -9,7 +9,7 @@ import (
 )
 
 // qualityConfigDocument is the structural wire form of the config seam
-// (git-governance.quality.json) at schema version 3. The verifier proves the
+// (git-governance.quality.json) at schema version 4. The verifier proves the
 // pinned schema version with strict structural decoding; the semantic gate
 // rules (gate-name uniqueness, duration parsing, discovery overrides) are
 // owned by the producer home that executes the gate — the tenant's quality
@@ -17,13 +17,17 @@ import (
 type qualityConfigDocument struct {
 	SchemaVersion int                  `json:"schemaVersion"`
 	Toolchain     qualityToolchainJSON `json:"toolchain"`
+	Extends       []string             `json:"extends"`
 	Defaults      qualityScopeJSON     `json:"defaults"`
 	Gates         []qualityGateJSON    `json:"gates"`
 	Project       qualityProjectJSON   `json:"project"`
 }
 
+// qualityToolchainJSON is the language-keyed toolchain identity of the v4
+// seam: one form serves every language territory without a schema fork.
 type qualityToolchainJSON struct {
-	GoVersion string `json:"goVersion"`
+	Language string `json:"language"`
+	Version  string `json:"version"`
 }
 
 type qualityScopeJSON struct {

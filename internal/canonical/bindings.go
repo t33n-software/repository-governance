@@ -22,7 +22,7 @@ import (
 const BindingsSchemaVersion = 1
 
 // QualitySchemaVersion is the config-seam schema version this verifier proves.
-const QualitySchemaVersion = 3
+const QualitySchemaVersion = 4
 
 const (
 	maxBindingsBytes = 1 << 20

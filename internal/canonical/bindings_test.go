@@ -33,7 +33,7 @@ func validBindingsJSON() string {
     "dependabot": { "path": ".github/dependabot.yml", "sha256": "` + strings.Repeat("d", 64) + `" }
   },
   "codeowners": { "path": ".github/CODEOWNERS", "defaultOwner": "@CyberT33N" },
-  "quality": { "config": "git-governance.quality.json", "schemaVersion": 3 },
+  "quality": { "config": "git-governance.quality.json", "schemaVersion": 4 },
   "tools": { "module": "tools/go.mod", "catalogVersion": 1 }
 }`
 }
@@ -64,7 +64,7 @@ func TestDecodeBindingsAcceptsTheReferenceManifest(t *testing.T) {
 	if bindings.Codeowners.DefaultOwner != "@CyberT33N" {
 		t.Fatalf("Codeowners = %+v", bindings.Codeowners)
 	}
-	if bindings.Quality.SchemaVersion != 3 {
+	if bindings.Quality.SchemaVersion != 4 {
 		t.Fatalf("Quality = %+v", bindings.Quality)
 	}
 	if bindings.Tools.Module != "tools/go.mod" || bindings.Tools.CatalogVersion != 1 {
@@ -178,7 +178,7 @@ func TestDecodeBindingsRejections(t *testing.T) {
 		},
 		{
 			name:    "wrong quality schema version",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"schemaVersion": 3 }`, `"schemaVersion": 2 }`, 1) },
+			mutate:  func(doc string) string { return strings.Replace(doc, `"schemaVersion": 4 }`, `"schemaVersion": 3 }`, 1) },
 			message: "quality.schemaVersion",
 		},
 		{
