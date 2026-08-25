@@ -75,6 +75,11 @@ jobs:
           test "$(go env GOOS)" = "${{ matrix.goos }}"
           test "$(go env GOARCH)" = "${{ matrix.goarch }}"
 
+      - name: Provision the declared capabilities
+        env:
+          GOFLAGS: -mod=readonly
+        run: go tool -modfile tools/go.mod quality-gate provision
+
       - name: Run the canonical quality gate
         env:
           GOFLAGS: -mod=readonly

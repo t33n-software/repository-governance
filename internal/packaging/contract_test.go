@@ -194,6 +194,38 @@ func TestPayloadsProvisionTheToolchainFromGoMod(t *testing.T) {
 	}
 }
 
+// TestCIPayloadCarriesTheConstantPackProvisioningSeam proves the
+// constant-size pack form of the CI payload: exactly one provisioning step
+// running the orchestrator's provision mode and exactly one gate step, the
+// provisioning step first. The seam is generic — it resolves every pack the
+// tenant declares against the capability-pack registry — so it covers exactly
+// the registry's known packs by construction: the payload never carries a
+// step for a nonexistent pack and never lacks coverage for an existing one.
+func TestCIPayloadCarriesTheConstantPackProvisioningSeam(t *testing.T) {
+	content := readArtifact(t, ".github/workflows/reusable-ci-go.yml")
+	const provisionCommand = "run: go tool -modfile tools/go.mod quality-gate provision"
+	const gateCommand = "run: go tool -modfile tools/go.mod quality-gate"
+
+	invocations := make([]string, 0, 2)
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, gateCommand) {
+			invocations = append(invocations, trimmed)
+		}
+	}
+	if len(invocations) != 2 || invocations[0] != provisionCommand || invocations[1] != gateCommand {
+		t.Fatalf("the CI payload must carry exactly one provisioning step before exactly one gate step, got %v", invocations)
+	}
+	if !strings.Contains(content, "- name: Provision the declared capabilities") {
+		t.Fatal("the provisioning step must carry the canonical step name")
+	}
+	for _, forbidden := range []string{"capabilities/", "extends"} {
+		if strings.Contains(content, forbidden) {
+			t.Fatalf("the CI payload must stay pack-agnostic and never reference %q", forbidden)
+		}
+	}
+}
+
 func TestPayloadsCarryTheGateJobNames(t *testing.T) {
 	expectations := map[string]string{
 		".github/workflows/reusable-ci-go.yml":             "name: ${{ matrix.name }}",
