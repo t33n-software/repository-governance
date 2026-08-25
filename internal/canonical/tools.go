@@ -26,7 +26,7 @@ type ToolCatalog struct {
 // toolCatalogDocument is the wire form of the canonical tool catalog.
 type toolCatalogDocument struct {
 	Schema        string `json:"$schema"`
-	SchemaVersion int   `json:"schemaVersion"`
+	SchemaVersion int    `json:"schemaVersion"`
 	Tools         []struct {
 		Name    string `json:"name"`
 		Module  string `json:"module"`

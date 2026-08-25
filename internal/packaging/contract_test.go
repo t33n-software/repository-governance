@@ -127,9 +127,9 @@ func TestPayloadsCarryNoForbiddenPatterns(t *testing.T) {
 
 func TestPayloadsPermissionMatrix(t *testing.T) {
 	matrix := map[string][]string{
-		".github/workflows/reusable-ci-go.yml":                {"contents: read"},
-		".github/workflows/reusable-codeql-go.yml":            {"actions: read", "contents: read", "security-events: write"},
-		".github/workflows/reusable-dependency-review.yml":    {"contents: read"},
+		".github/workflows/reusable-ci-go.yml":             {"contents: read"},
+		".github/workflows/reusable-codeql-go.yml":         {"actions: read", "contents: read", "security-events: write"},
+		".github/workflows/reusable-dependency-review.yml": {"contents: read"},
 	}
 	for payload, permissions := range matrix {
 		t.Run(filepath.Base(payload), func(t *testing.T) {

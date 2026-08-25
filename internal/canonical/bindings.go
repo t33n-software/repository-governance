@@ -109,14 +109,14 @@ type Bindings struct {
 // bindingsDocument is the wire form of the manifest. Unknown fields are
 // rejected at decode time.
 type bindingsDocument struct {
-	SchemaVersion int              `json:"schemaVersion"`
-	Home          homeJSON         `json:"home"`
-	Class         classJSON        `json:"class"`
-	Callers       []callerJSON     `json:"callers"`
-	Files         filesJSON        `json:"files"`
-	Codeowners    codeownersJSON   `json:"codeowners"`
-	Quality       qualityJSON      `json:"quality"`
-	Tools         toolsJSON        `json:"tools"`
+	SchemaVersion int            `json:"schemaVersion"`
+	Home          homeJSON       `json:"home"`
+	Class         classJSON      `json:"class"`
+	Callers       []callerJSON   `json:"callers"`
+	Files         filesJSON      `json:"files"`
+	Codeowners    codeownersJSON `json:"codeowners"`
+	Quality       qualityJSON    `json:"quality"`
+	Tools         toolsJSON      `json:"tools"`
 }
 
 type homeJSON struct {

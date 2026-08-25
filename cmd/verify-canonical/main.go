@@ -25,12 +25,12 @@ const bindingsFileName = "repo-bindings.json"
 var version = "dev"
 
 var (
-	exitProcess  = os.Exit
-	commandArgs  = os.Args
-	readFile     = os.ReadFile
-	verify       = verifyTenant
-	resolveHome  = canonical.ResolveModuleDir
-	newVerifier  = canonical.NewVerifier
+	exitProcess = os.Exit
+	commandArgs = os.Args
+	readFile    = os.ReadFile
+	verify      = verifyTenant
+	resolveHome = canonical.ResolveModuleDir
+	newVerifier = canonical.NewVerifier
 )
 
 func main() {
