@@ -30,10 +30,29 @@ func NewVerifier(tenantRoot, homeRoot string, stdout, stderr io.Writer) Verifier
 		ReadModule: func(dir, path string) ([]byte, error) {
 			return os.ReadFile(filepath.Join(dir, filepath.FromSlash(path)))
 		},
+		ListTenant: func(path string) ([]string, error) {
+			return listEntryNames(filepath.Join(tenantRoot, filepath.FromSlash(path)))
+		},
+		ListModule: func(dir, path string) ([]string, error) {
+			return listEntryNames(filepath.Join(dir, filepath.FromSlash(path)))
+		},
 		ResolveModule: ResolveModuleDir,
 		Stdout:        stdout,
 		Stderr:        stderr,
 	}
+}
+
+// listEntryNames returns the entry names of a directory.
+func listEntryNames(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	return names, nil
 }
 
 // commandOutput is the production process execution of the module resolution.

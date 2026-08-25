@@ -24,6 +24,12 @@ type Verifier struct {
 	ReadHome func(path string) ([]byte, error)
 	// ReadModule reads a file inside a resolved module directory.
 	ReadModule func(dir, path string) ([]byte, error)
+	// ListTenant lists the entry names of a tenant directory by its
+	// repository-relative slash path.
+	ListTenant func(path string) ([]string, error)
+	// ListModule lists the entry names of a directory inside a resolved
+	// module directory.
+	ListModule func(dir, path string) ([]string, error)
 	// ResolveModule resolves a module's cache directory within the tenant's
 	// tooling module context.
 	ResolveModule func(ctx context.Context, dir, module string) (string, error)
@@ -44,6 +50,7 @@ func (v Verifier) Verify(ctx context.Context, bindings Bindings) []Finding {
 	findings = append(findings, v.verifyFiles(bindings)...)
 	findings = append(findings, v.verifyCodeowners(bindings)...)
 	findings = append(findings, v.verifyQuality(bindings)...)
+	findings = append(findings, v.verifyExtends(ctx, bindings)...)
 	findings = append(findings, v.verifyToolchain()...)
 	findings = append(findings, v.verifyTools(ctx, bindings)...)
 	findings = append(findings, v.verifyLicense(bindings)...)

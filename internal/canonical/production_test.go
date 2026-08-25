@@ -47,8 +47,45 @@ func TestNewVerifierProductionSeams(t *testing.T) {
 	if _, err := verifier.ReadTenant("missing.txt"); err == nil {
 		t.Fatal("expected the missing file error")
 	}
+	tenantEntries, err := verifier.ListTenant("")
+	if err != nil {
+		t.Fatalf("ListTenant: %v", err)
+	}
+	if len(tenantEntries) != 1 || tenantEntries[0] != "tenant.txt" {
+		t.Fatalf("tenant entries = %v", tenantEntries)
+	}
+	moduleEntries, err := verifier.ListModule(root, "")
+	if err != nil {
+		t.Fatalf("ListModule: %v", err)
+	}
+	if len(moduleEntries) != 1 || moduleEntries[0] != "tenant.txt" {
+		t.Fatalf("module entries = %v", moduleEntries)
+	}
+	if _, err := verifier.ListTenant("missing"); err == nil {
+		t.Fatal("expected the missing directory error")
+	}
 	if verifier.ResolveModule == nil {
 		t.Fatal("the module resolver must be bound")
+	}
+}
+
+func TestListEntryNames(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "a"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "b.txt"), []byte("b"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	names, err := listEntryNames(dir)
+	if err != nil {
+		t.Fatalf("listEntryNames: %v", err)
+	}
+	if strings.Join(names, ",") != "a,b.txt" {
+		t.Fatalf("names = %v", names)
+	}
+	if _, err := listEntryNames(filepath.Join(dir, "missing")); err == nil {
+		t.Fatal("expected the missing directory error")
 	}
 }
 
