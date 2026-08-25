@@ -16,6 +16,6 @@ jobs:
     name: Quality gates
     permissions:
       contents: read
-    uses: t33n-software/repository-governance/.github/workflows/reusable-ci-go.yml@f9c7eba0536900415714e3d50bd45f97de5fe0e0
+    uses: t33n-software/repository-governance/.github/workflows/reusable-ci-go.yml@c4d870b7e24d8959c13b46b935983877a349b2b4
     with:
       quality_class: linux-only
