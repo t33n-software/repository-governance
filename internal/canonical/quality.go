@@ -61,24 +61,46 @@ type qualityFuzzJSON struct {
 	Time    string `json:"time"`
 }
 
-// DecodeQualityConfigVersion strictly decodes the tenant's configuration seam
-// and returns its declared schema version. Unknown fields, trailing documents,
-// and type mismatches are rejected with a precise error.
-func DecodeQualityConfigVersion(contents []byte) (int, error) {
+// decodeQualityConfig strictly decodes the tenant's configuration seam wire
+// form. Unknown fields, trailing documents, and type mismatches are rejected
+// with a precise error.
+func decodeQualityConfig(contents []byte) (qualityConfigDocument, error) {
+	var document qualityConfigDocument
 	if len(contents) == 0 {
-		return 0, errors.New("quality configuration must not be empty")
+		return document, errors.New("quality configuration must not be empty")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(contents))
 	decoder.DisallowUnknownFields()
-	var document qualityConfigDocument
 	if err := decoder.Decode(&document); err != nil {
-		return 0, fmt.Errorf("quality configuration must contain valid JSON with known fields: %w", err)
+		return document, fmt.Errorf("quality configuration must contain valid JSON with known fields: %w", err)
 	}
 	var extra any
 	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
-		return 0, errors.New("quality configuration must contain exactly one JSON document")
+		return document, errors.New("quality configuration must contain exactly one JSON document")
+	}
+	return document, nil
+}
+
+// DecodeQualityConfigVersion strictly decodes the tenant's configuration seam
+// and returns its declared schema version.
+func DecodeQualityConfigVersion(contents []byte) (int, error) {
+	document, err := decodeQualityConfig(contents)
+	if err != nil {
+		return 0, err
 	}
 	return document.SchemaVersion, nil
+}
+
+// DecodeQualityConfigExtends strictly decodes the tenant's configuration seam
+// and returns its declared capability pack references. The reference grammar
+// is validated by the producer home's decoder at gate time; the verifier
+// proves the resolution of every declared reference fail-closed.
+func DecodeQualityConfigExtends(contents []byte) ([]string, error) {
+	document, err := decodeQualityConfig(contents)
+	if err != nil {
+		return nil, err
+	}
+	return document.Extends, nil
 }
 
 // verifyQuality proves the tenant's configuration seam strictly decodes and

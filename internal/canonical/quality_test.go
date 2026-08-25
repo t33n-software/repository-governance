@@ -69,6 +69,32 @@ func TestDecodeQualityConfigVersionRejections(t *testing.T) {
 	}
 }
 
+func TestDecodeQualityConfigExtends(t *testing.T) {
+	extends, err := DecodeQualityConfigExtends([]byte(`{"schemaVersion":4,"toolchain":{"language":"go","version":"1.26.6"},"extends":["opentofu@1"],"gates":[{"name":"a","command":"go"}]}`))
+	if err != nil {
+		t.Fatalf("DecodeQualityConfigExtends: %v", err)
+	}
+	if len(extends) != 1 || extends[0] != "opentofu@1" {
+		t.Fatalf("extends = %v", extends)
+	}
+}
+
+func TestDecodeQualityConfigExtendsWithoutDeclaration(t *testing.T) {
+	extends, err := DecodeQualityConfigExtends([]byte(`{"schemaVersion":4,"gates":[{"name":"a","command":"go"}]}`))
+	if err != nil {
+		t.Fatalf("DecodeQualityConfigExtends: %v", err)
+	}
+	if len(extends) != 0 {
+		t.Fatalf("extends = %v", extends)
+	}
+}
+
+func TestDecodeQualityConfigExtendsRejection(t *testing.T) {
+	if _, err := DecodeQualityConfigExtends([]byte(`not json`)); err == nil {
+		t.Fatal("expected a rejection")
+	}
+}
+
 func TestVerifyQuality(t *testing.T) {
 	bindings := Bindings{Quality: QualityBinding{Config: "git-governance.quality.json", SchemaVersion: 4}}
 
