@@ -18,4 +18,4 @@ jobs:
       actions: read
       contents: read
       security-events: write
-    uses: t33n-software/repository-governance/.github/workflows/reusable-codeql-go.yml@842c23028f0635a6478b727248033731693139a4
+    uses: t33n-software/repository-governance/.github/workflows/reusable-codeql-go.yml@f9c7eba0536900415714e3d50bd45f97de5fe0e0
