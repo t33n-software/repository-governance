@@ -275,7 +275,7 @@ func TestVerifyToolsUnadmitted(t *testing.T) {
 
 func TestVerifyToolsPass(t *testing.T) {
 	fixture := toolsFixture{
-		moduleContents: []byte("tool (\n\thonnef.co/go/tools/cmd/staticcheck\n\tgithub.com/t33n-software/repository-governance/cmd/verify-canonical\n)\n"),
+		moduleContents:  []byte("tool (\n\thonnef.co/go/tools/cmd/staticcheck\n\tgithub.com/t33n-software/repository-governance/cmd/verify-canonical\n)\n"),
 		resolveDir:      "gqa",
 		catalogContents: []byte(catalogJSON()),
 		homeGoMod:       []byte("module github.com/t33n-software/repository-governance\n"),

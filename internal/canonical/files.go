@@ -14,9 +14,9 @@ const codeownersToken = "{{defaultOwner}}"
 
 // fileTopics maps each canonical file topic to its home-relative master path.
 var fileTopics = []struct {
-	topic     string
-	homePath  string
-	binding   func(FileBindings) FileBinding
+	topic      string
+	homePath   string
+	binding    func(FileBindings) FileBinding
 	prefixMode bool
 }{
 	{topic: "lefthook", homePath: "hosting-platforms/github/files/lefthook/lefthook.yml", binding: func(f FileBindings) FileBinding { return f.Lefthook }},
