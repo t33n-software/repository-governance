@@ -319,6 +319,39 @@ func TestCallerHashesRecordMatchesTheMasters(t *testing.T) {
 	}
 }
 
+func TestConformanceActionTracksTheCanonicalPin(t *testing.T) {
+	record := readArtifact(t, "hosting-platforms/github/workflows/callers/go/caller-hashes.json")
+	var document struct {
+		Home struct {
+			SHA string `json:"sha"`
+		} `json:"home"`
+	}
+	if err := json.Unmarshal([]byte(record), &document); err != nil {
+		t.Fatalf("the caller-hashes record is not valid JSON: %v", err)
+	}
+	if !actionSHA.MatchString("@" + document.Home.SHA) {
+		t.Fatalf("the canonical home pin %q is not a full-length commit SHA", document.Home.SHA)
+	}
+
+	action := readArtifact(t, ".github/actions/verify-canonical-files/action.yml")
+	reference := ""
+	for _, line := range strings.Split(action, "\n") {
+		trimmed := strings.TrimSpace(line)
+		uses, found := strings.CutPrefix(trimmed, "uses: ")
+		if !found || !strings.Contains(uses, "/.github/actions/setup-controlled-go@") {
+			continue
+		}
+		_, sha, _ := strings.Cut(uses, "@")
+		reference = strings.TrimSpace(sha)
+	}
+	if reference == "" {
+		t.Fatal("the verify-canonical-files action carries no setup-controlled-go reference")
+	}
+	if reference != document.Home.SHA {
+		t.Fatalf("the verify-canonical-files action references setup-controlled-go at %s, not the canonical home pin %s", reference, document.Home.SHA)
+	}
+}
+
 func TestCanonicalFileFamily(t *testing.T) {
 	gitattributes := readArtifact(t, "hosting-platforms/github/files/gitattributes/.gitattributes")
 	if gitattributes != "* text=auto eol=lf\n" {
