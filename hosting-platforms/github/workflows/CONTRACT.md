@@ -69,14 +69,17 @@ line — the activation order is validated sequencing, never assumption.
 ## The binding seams
 
 - **Toolchain version.** The payloads and the controlled-Go setup action
-  provision the pinned toolchain from the tenant's `go.mod` — the Go-native
-  selector that `actions/setup-go` reads through `go-version-file: go.mod`
-  (the `toolchain` directive, with the `go` directive as the platform
-  fallback). The configuration seam's `toolchain.goVersion` remains the
-  assertion authority: the quality gate cross-checks the running toolchain
-  against it fail-closed, and the conformance verifier proves the tenant's
-  `go.mod` carries the directive. The toolchain identity is tenant data at
-  its native place — never a workflow edit, never a JSON extraction shim.
+  provision exactly the toolchain pinned by the `toolchain` directive of the
+  tenant's `go.mod`: a fail-closed resolution step extracts the pinned
+  version (a missing, ambiguous, or malformed directive is an error — the
+  seam requires the exact three-part form `goX.Y.Z`, with no fallback to the
+  `go` directive and never a resolution to the latest patch) and
+  `actions/setup-go` installs exactly that version through `go-version`. The
+  configuration seam's `toolchain.version` remains the assertion authority:
+  the quality gate cross-checks the running toolchain against it fail-closed,
+  and the conformance verifier proves the tenant's `go.mod` carries the
+  directive. The toolchain identity is tenant data at its native place —
+  never a workflow edit, never a JSON extraction shim.
 - **Quality gate.** The CI payload runs `go tool -modfile tools/go.mod
   quality-gate`; the tool pin resolves through the tenant's tooling module
   (class-D consumption).

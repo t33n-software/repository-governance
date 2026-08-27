@@ -50,7 +50,8 @@ On a tenant pull request it proves, fail-closed:
    home that executes the gate);
 3. the tenant's `go.mod` carries an explicit, well-formed `toolchain`
    directive — the Go-native selector the payloads and the controlled-Go
-   setup action provision through `go-version-file: go.mod`;
+   setup action resolve fail-closed and install exactly through
+   `go-version` (never the `go` directive, never the latest patch);
 4. the canonical file family matches the bound hashes — byte-identical for
    `lefthook.yml`, `.gitattributes`, and `dependabot.yml`, and the canonical
    core as a verbatim prefix for `.gitignore`;
@@ -78,8 +79,10 @@ home change it proves: the payloads carry only `on: workflow_call`, every
 action reference is a full-length commit SHA with a version comment, the
 permission matrix per lane, the absence of forbidden patterns
 (`pull_request_target`, workflow-level `GOFLAGS`, `cache: true`), the
-Go-native toolchain provisioning (`go-version-file: go.mod`, no JSON
-extraction shim) and the gate job names of the payloads, the callers'
+exact pinned toolchain provisioning (the fail-closed resolution step reads
+the `toolchain` directive of the tenant's `go.mod` and `go-version` installs
+exactly that version — never `go-version-file`, no JSON extraction shim) and
+the gate job names of the payloads, the callers'
 four-shared-line trigger coverage and exact job names, the byte identity
 between the home's own callers and the canonical masters, the caller-hashes
 record against the recomputed master content, the canonical file family, the
