@@ -175,7 +175,14 @@ func TestPayloadsAreOrganizationAgnostic(t *testing.T) {
 	}
 }
 
-func TestPayloadsProvisionTheToolchainFromGoMod(t *testing.T) {
+// TestPayloadsProvisionTheExactPinnedToolchain proves the exact controlled
+// toolchain provisioning: every Go-provisioning artifact carries the
+// fail-closed resolution step that extracts the pinned version from the
+// toolchain directive of the tenant's go.mod, and setup-go installs exactly
+// that version through go-version. The drift-prone go-version-file form
+// (which resolves the go directive to the latest patch) and the JSON
+// extraction shim are forbidden everywhere.
+func TestPayloadsProvisionTheExactPinnedToolchain(t *testing.T) {
 	goArtifacts := []string{
 		".github/workflows/reusable-ci-go.yml",
 		".github/workflows/reusable-codeql-go.yml",
@@ -184,11 +191,27 @@ func TestPayloadsProvisionTheToolchainFromGoMod(t *testing.T) {
 	for _, artifact := range goArtifacts {
 		t.Run(filepath.Base(artifact), func(t *testing.T) {
 			content := readArtifact(t, artifact)
-			if !strings.Contains(content, "go-version-file: go.mod") {
-				t.Fatalf("%s must provision the toolchain from the tenant go.mod", artifact)
+			for _, required := range []string{
+				"- name: Resolve the pinned toolchain",
+				"id: toolchain",
+				`- name: Set up Go`,
+				`$1 == "toolchain"`,
+				"must carry exactly one pinned toolchain directive",
+				"go-version: ${{ steps.toolchain.outputs.version }}",
+			} {
+				if !strings.Contains(content, required) {
+					t.Fatalf("%s must carry %q", artifact, required)
+				}
 			}
-			if strings.Contains(content, "jq") {
-				t.Fatalf("%s must not carry the JSON extraction shim", artifact)
+			resolution := strings.Index(content, "- name: Resolve the pinned toolchain")
+			setup := strings.Index(content, "- name: Set up Go")
+			if setup < resolution {
+				t.Fatalf("%s must resolve the pinned toolchain before setting up Go", artifact)
+			}
+			for _, forbidden := range []string{"go-version-file", "jq"} {
+				if strings.Contains(content, forbidden) {
+					t.Fatalf("%s must not carry %q", artifact, forbidden)
+				}
 			}
 		})
 	}
