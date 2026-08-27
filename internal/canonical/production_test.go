@@ -51,14 +51,14 @@ func TestNewVerifierProductionSeams(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTenant: %v", err)
 	}
-	if len(tenantEntries) != 1 || tenantEntries[0] != "tenant.txt" {
+	if len(tenantEntries) != 1 || tenantEntries[0].Name() != "tenant.txt" {
 		t.Fatalf("tenant entries = %v", tenantEntries)
 	}
 	moduleEntries, err := verifier.ListModule(root, "")
 	if err != nil {
 		t.Fatalf("ListModule: %v", err)
 	}
-	if len(moduleEntries) != 1 || moduleEntries[0] != "tenant.txt" {
+	if len(moduleEntries) != 1 || moduleEntries[0].Name() != "tenant.txt" {
 		t.Fatalf("module entries = %v", moduleEntries)
 	}
 	if _, err := verifier.ListTenant("missing"); err == nil {
@@ -69,7 +69,10 @@ func TestNewVerifierProductionSeams(t *testing.T) {
 	}
 }
 
-func TestListEntryNames(t *testing.T) {
+// TestListEntries proves the production seam surfaces files and directories
+// with their honest directory bits: the consumers skip non-directory entries,
+// so the seam must report both kinds faithfully.
+func TestListEntries(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.Mkdir(filepath.Join(dir, "a"), 0o755); err != nil {
 		t.Fatal(err)
@@ -77,14 +80,20 @@ func TestListEntryNames(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "b.txt"), []byte("b"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	names, err := listEntryNames(dir)
+	entries, err := listEntries(dir)
 	if err != nil {
-		t.Fatalf("listEntryNames: %v", err)
+		t.Fatalf("listEntries: %v", err)
 	}
-	if strings.Join(names, ",") != "a,b.txt" {
-		t.Fatalf("names = %v", names)
+	if len(entries) != 2 {
+		t.Fatalf("entries = %v", entries)
 	}
-	if _, err := listEntryNames(filepath.Join(dir, "missing")); err == nil {
+	if entries[0].Name() != "a" || !entries[0].IsDir() {
+		t.Fatalf("the directory entry = %v", entries[0])
+	}
+	if entries[1].Name() != "b.txt" || entries[1].IsDir() {
+		t.Fatalf("the file entry = %v", entries[1])
+	}
+	if _, err := listEntries(filepath.Join(dir, "missing")); err == nil {
 		t.Fatal("expected the missing directory error")
 	}
 }

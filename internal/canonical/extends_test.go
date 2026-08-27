@@ -17,13 +17,57 @@ func testPackDescriptor(capability, area string, version int) string {
 		capability, area, version)
 }
 
+// fakeDirEntry is a test directory entry carrying only the name and the
+// directory bit the enumeration semantics rely on.
+type fakeDirEntry struct {
+	name  string
+	isDir bool
+}
+
+func (entry fakeDirEntry) Name() string { return entry.name }
+func (entry fakeDirEntry) IsDir() bool  { return entry.isDir }
+func (entry fakeDirEntry) Type() fs.FileMode {
+	if entry.isDir {
+		return fs.ModeDir
+	}
+	return 0
+}
+func (entry fakeDirEntry) Info() (fs.FileInfo, error) { return nil, errors.New("no info") }
+
 // fakeRegistry is a virtual capability-pack registry tree: the area names of
 // the capabilities root plus the descriptor contents by registry-relative
-// path.
+// path. nonAreas carries sanctioned non-directory root entries such as the
+// anchor package files; a read through them fails with a non-ErrNotExist
+// error, honestly simulating the platform that reports not-a-directory.
 type fakeRegistry struct {
-	areas   []string
-	files   map[string][]byte
-	listErr error
+	areas    []string
+	nonAreas []string
+	files    map[string][]byte
+	listErr  error
+}
+
+// entries builds the directory listing: the capability areas as directories
+// plus the non-area root entries as files.
+func (registry *fakeRegistry) entries() []fs.DirEntry {
+	entries := make([]fs.DirEntry, 0, len(registry.areas)+len(registry.nonAreas))
+	for _, area := range registry.areas {
+		entries = append(entries, fakeDirEntry{name: area, isDir: true})
+	}
+	for _, file := range registry.nonAreas {
+		entries = append(entries, fakeDirEntry{name: file})
+	}
+	return entries
+}
+
+// readError reports the failure of a read through a non-area root entry: the
+// anchor files are not directories.
+func (registry *fakeRegistry) readError(path string) (error, bool) {
+	for _, file := range registry.nonAreas {
+		if strings.HasPrefix(path, file+"/") {
+			return &fs.PathError{Op: "open", Path: path, Err: errors.New("not a directory")}, true
+		}
+	}
+	return nil, false
 }
 
 // extendsFixture binds the verifier seams for the extends-resolution tests.
@@ -75,16 +119,20 @@ func (fixture *extendsFixture) verifier() Verifier {
 				return []byte(fixture.goMod), nil
 			default:
 				if fixture.tenant != nil {
-					if contents, found := fixture.tenant.files[strings.TrimPrefix(path, "capabilities/")]; found {
+					trimmed := strings.TrimPrefix(path, "capabilities/")
+					if err, isNonArea := fixture.tenant.readError(trimmed); isNonArea {
+						return nil, err
+					}
+					if contents, found := fixture.tenant.files[trimmed]; found {
 						return contents, nil
 					}
 				}
 				return nil, fs.ErrNotExist
 			}
 		},
-		ListTenant: func(path string) ([]string, error) {
+		ListTenant: func(path string) ([]fs.DirEntry, error) {
 			if fixture.tenant != nil && path == "capabilities" {
-				return fixture.tenant.areas, fixture.tenant.listErr
+				return fixture.tenant.entries(), fixture.tenant.listErr
 			}
 			return nil, fs.ErrNotExist
 		},
@@ -110,18 +158,22 @@ func (fixture *extendsFixture) verifier() Verifier {
 			if registry == nil {
 				return nil, fs.ErrNotExist
 			}
-			contents, found := registry.files[strings.TrimPrefix(path, "capabilities/")]
+			trimmed := strings.TrimPrefix(path, "capabilities/")
+			if err, isNonArea := registry.readError(trimmed); isNonArea {
+				return nil, err
+			}
+			contents, found := registry.files[trimmed]
 			if !found {
 				return nil, fs.ErrNotExist
 			}
 			return contents, nil
 		},
-		ListModule: func(dir, path string) ([]string, error) {
+		ListModule: func(dir, path string) ([]fs.DirEntry, error) {
 			registry := fixture.registryFor(dir)
 			if registry == nil {
 				return nil, fs.ErrNotExist
 			}
-			return registry.areas, registry.listErr
+			return registry.entries(), registry.listErr
 		},
 	}
 }
@@ -300,6 +352,36 @@ func TestVerifyExtendsRegistryWithoutCapabilitiesTree(t *testing.T) {
 	fixture.gqa = nil // the territory registry resolves but carries no capabilities tree
 	if findings := fixture.verifier().verifyExtends(context.Background(), extendsBindings()); len(findings) != 0 {
 		t.Fatalf("findings = %v", findings)
+	}
+}
+
+// TestVerifyExtendsSkipsTheRegistryAnchorPackage is the regression guard for
+// the platform-dependent enumeration defect: the registry root carries the
+// anchor package files (doc.go, doc_test.go) beside the area directories, and
+// a read through them fails with not-a-directory on platforms that report it.
+// The enumeration must skip non-directory entries before any read, so the
+// anchor package never produces findings.
+func TestVerifyExtendsSkipsTheRegistryAnchorPackage(t *testing.T) {
+	fixture := sharedKernelPack()
+	fixture.scg.nonAreas = []string{"doc.go", "doc_test.go"}
+	if findings := fixture.verifier().verifyExtends(context.Background(), extendsBindings()); len(findings) != 0 {
+		t.Fatalf("the registry anchor package must not produce findings: %v", findings)
+	}
+}
+
+func TestVerifyExtendsSkipsTheHomeAnchorPackage(t *testing.T) {
+	fixture := sharedKernelPack()
+	fixture.config = extendsConfig(`"gofumpt@1"`)
+	fixture.goMod = "module " + qualityAuthorityModule + "\n"
+	fixture.tenant = &fakeRegistry{
+		areas:    []string{"formatting"},
+		nonAreas: []string{"doc.go"},
+		files: map[string][]byte{
+			"formatting/gofumpt/v1/pack.json": []byte(testPackDescriptor("gofumpt", "formatting", 1)),
+		},
+	}
+	if findings := fixture.verifier().verifyExtends(context.Background(), extendsBindings()); len(findings) != 0 {
+		t.Fatalf("the home working-tree anchor package must not produce findings: %v", findings)
 	}
 }
 
@@ -510,10 +592,10 @@ func TestVerifyRunsTheExtendsProof(t *testing.T) {
 			}
 		},
 		ReadHome: func(path string) ([]byte, error) { return nil, errTestMissing },
-		ListTenant: func(path string) ([]string, error) {
+		ListTenant: func(path string) ([]fs.DirEntry, error) {
 			return nil, errTestMissing
 		},
-		ListModule: func(dir, path string) ([]string, error) {
+		ListModule: func(dir, path string) ([]fs.DirEntry, error) {
 			return nil, errTestMissing
 		},
 		ResolveModule: func(ctx context.Context, dir, module string) (string, error) {

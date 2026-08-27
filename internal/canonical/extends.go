@@ -83,7 +83,7 @@ func decodePackIdentity(contents []byte) (packIdentityDocument, error) {
 type registryTree struct {
 	owner string
 	read  func(path string) ([]byte, error)
-	list  func(path string) ([]string, error)
+	list  func(path string) ([]fs.DirEntry, error)
 }
 
 // registryPath joins a registry-relative path below the capabilities root.
@@ -203,7 +203,7 @@ func (v Verifier) resolveRegistries(ctx context.Context, bindings Bindings) regi
 				read: func(path string) ([]byte, error) {
 					return v.ReadTenant(registryPath(path))
 				},
-				list: func(path string) ([]string, error) {
+				list: func(path string) ([]fs.DirEntry, error) {
 					return v.ListTenant(registryPath(path))
 				},
 			})
@@ -220,7 +220,7 @@ func (v Verifier) resolveRegistries(ctx context.Context, bindings Bindings) regi
 			read: func(path string) ([]byte, error) {
 				return v.ReadModule(resolved, registryPath(path))
 			},
-			list: func(path string) ([]string, error) {
+			list: func(path string) ([]fs.DirEntry, error) {
 				return v.ListModule(resolved, registryPath(path))
 			},
 		})
@@ -249,7 +249,16 @@ func (v Verifier) resolvePackReference(search registrySearch, reference packRefe
 			continue
 		}
 		for _, area := range areas {
-			descriptorPath := area + suffix
+			// Only directories are capability areas. The registry root also
+			// carries the anchor package files (the registry pin durability
+			// convention); reading through them fails platform-dependently
+			// (ENOTDIR versus path-not-found), so the skip must happen here
+			// and never through a read-error classification — the same
+			// semantics as the orchestrator's engine.
+			if !area.IsDir() {
+				continue
+			}
+			descriptorPath := area.Name() + suffix
 			contents, err := tree.read(descriptorPath)
 			if errors.Is(err, fs.ErrNotExist) {
 				continue
@@ -265,11 +274,11 @@ func (v Verifier) resolvePackReference(search registrySearch, reference packRefe
 					fmt.Sprintf("the pack descriptor %s in %s is invalid: %v", descriptorPath, tree.owner, err)))
 				continue
 			}
-			if identity.Capability != reference.capability || identity.Area != area || identity.Version != reference.major {
+			if identity.Capability != reference.capability || identity.Area != area.Name() || identity.Version != reference.major {
 				findings = append(findings, mismatchFinding(check, fmt.Sprintf(
 					"the pack descriptor %s in %s carries the identity %s/%s v%d, not the %s/%s v%d of its registry location",
 					descriptorPath, tree.owner, identity.Area, identity.Capability, identity.Version,
-					area, reference.capability, reference.major)))
+					area.Name(), reference.capability, reference.major)))
 				continue
 			}
 			matches = append(matches, tree.owner)
