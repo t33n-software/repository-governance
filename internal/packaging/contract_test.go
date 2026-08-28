@@ -249,6 +249,27 @@ func TestCIPayloadCarriesTheConstantPackProvisioningSeam(t *testing.T) {
 	}
 }
 
+// TestCIPayloadFetchesFullHistory proves the CI payload checks out the full
+// history and every branch (fetch-depth: 0): governed tenant suites may carry
+// provenance guards — such as the pin-ancestry proof against the merged lines
+// — that fail-closed require the merged refs and their history. A shallow
+// single-ref checkout blinds exactly these guards and turns their evidence
+// into a missing-reference failure.
+func TestCIPayloadFetchesFullHistory(t *testing.T) {
+	content := readArtifact(t, ".github/workflows/reusable-ci-go.yml")
+	checkoutIndex := strings.Index(content, "- name: Check out source")
+	if checkoutIndex == -1 {
+		t.Fatal("the CI payload must carry the checkout step")
+	}
+	checkoutStep := content[checkoutIndex:]
+	if nextStep := strings.Index(checkoutStep, "- name: Resolve the pinned toolchain"); nextStep != -1 {
+		checkoutStep = checkoutStep[:nextStep]
+	}
+	if !strings.Contains(checkoutStep, "fetch-depth: 0") {
+		t.Fatal("the CI payload checkout must fetch the full history and every branch (fetch-depth: 0): governed tenant suites carry provenance guards that fail-closed require the merged lines and their history")
+	}
+}
+
 func TestPayloadsCarryTheGateJobNames(t *testing.T) {
 	expectations := map[string]string{
 		".github/workflows/reusable-ci-go.yml":             "name: ${{ matrix.name }}",
