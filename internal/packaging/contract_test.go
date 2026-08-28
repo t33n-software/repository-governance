@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/t33n-software/repository-governance/internal/canonical"
+	"go.yaml.in/yaml/v3"
 )
 
 // repoRoot resolves the repository root from the packaging test package.
@@ -66,6 +67,27 @@ var callers = []string{
 	"hosting-platforms/github/workflows/callers/go/ci-full.yml",
 	"hosting-platforms/github/workflows/callers/go/codeql.yml",
 	"hosting-platforms/github/workflows/callers/go/dependency-review.yml",
+}
+
+// compositeActions lists the home's composite actions.
+var compositeActions = []string{
+	".github/actions/setup-controlled-go/action.yml",
+	".github/actions/verify-canonical-files/action.yml",
+}
+
+// homeWorkflows lists the home's own workflow files beyond the payloads: the
+// three dogfooding callers and the seven lifecycle callers.
+var homeWorkflows = []string{
+	".github/workflows/ci.yml",
+	".github/workflows/codeql.yml",
+	".github/workflows/dependency-review.yml",
+	".github/workflows/execute-protected-line-request.yml",
+	".github/workflows/hotfix-delivery.yml",
+	".github/workflows/hotfix-propagation.yml",
+	".github/workflows/publish-release-artifacts.yml",
+	".github/workflows/release-control.yml",
+	".github/workflows/release-reconciliation.yml",
+	".github/workflows/tag-promoted-release.yml",
 }
 
 var actionSHA = regexp.MustCompile(`@[0-9a-f]{40}\s*(#.*)?$`)
@@ -267,6 +289,28 @@ func TestCIPayloadFetchesFullHistory(t *testing.T) {
 	}
 	if !strings.Contains(checkoutStep, "fetch-depth: 0") {
 		t.Fatal("the CI payload checkout must fetch the full history and every branch (fetch-depth: 0): governed tenant suites carry provenance guards that fail-closed require the merged lines and their history")
+	}
+}
+
+// TestWorkflowAndActionFilesAreWellFormedYAML proves that every workflow and
+// action file of the home parses as well-formed YAML: the three payloads, the
+// four caller masters, the two composite actions, and the ten home workflow
+// files (the dogfooding and lifecycle callers). Pin and reference edits touch
+// these files as text; a broken indentation is invisible to the string-based
+// guards but breaks every YAML consumer, so the drift watcher parses each
+// file fail-closed.
+func TestWorkflowAndActionFilesAreWellFormedYAML(t *testing.T) {
+	artifacts := make([]string, 0, len(payloads)+len(callers)+len(compositeActions)+len(homeWorkflows))
+	for _, group := range [][]string{payloads, callers, compositeActions, homeWorkflows} {
+		artifacts = append(artifacts, group...)
+	}
+	for _, artifact := range artifacts {
+		t.Run(artifact, func(t *testing.T) {
+			var document any
+			if err := yaml.Unmarshal([]byte(readArtifact(t, artifact)), &document); err != nil {
+				t.Fatalf("%s must be well-formed YAML: %v", artifact, err)
+			}
+		})
 	}
 }
 
