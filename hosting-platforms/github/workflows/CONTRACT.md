@@ -80,6 +80,12 @@ line — the activation order is validated sequencing, never assumption.
   and the conformance verifier proves the tenant's `go.mod` carries the
   directive. The toolchain identity is tenant data at its native place —
   never a workflow edit, never a JSON extraction shim.
+- **Full history.** The CI payload checks out the full history and every
+  branch (`fetch-depth: 0`): governed suites may carry provenance guards —
+  such as the pin-ancestry proof against the merged lines — that fail-closed
+  require the merged refs and their history. A shallow single-ref checkout
+  blinds exactly these guards; the lane provides the full substrate so the
+  guards prove with evidence instead of failing on a missing reference.
 - **Quality gate.** The CI payload runs `go tool -modfile tools/go.mod
   quality-gate`; the tool pin resolves through the tenant's tooling module
   (class-D consumption).
