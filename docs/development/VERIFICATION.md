@@ -62,7 +62,13 @@ On a tenant pull request it proves, fail-closed:
    every tool pin in the tenant's tooling module is admitted by the catalog or
    is the home's own verifier tool;
 7. where the license-hub family is bound, the license binding values and lock
-   exist and decode as JSON documents.
+   exist and decode as JSON documents, and the verifier orchestrates the
+   tenant-pinned `license` CLI through the tenant's tooling module: the locked
+   template is resolved inside the pinned license-hub module directory, and
+   the pinned tool proves pin integrity, drift freedom, and completeness of
+   the committed instance fail-closed — the verification semantics live
+   exactly once in the license hub and are never re-implemented by the
+   verifier.
 
 The tenant's binding manifest (`repo-bindings.json`) is strictly decoded
 against `schemas/repo-bindings/v1/repo-bindings.schema.json`; the home's

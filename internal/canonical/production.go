@@ -38,8 +38,12 @@ func NewVerifier(tenantRoot, homeRoot string, stdout, stderr io.Writer) Verifier
 			return listEntries(filepath.Join(dir, filepath.FromSlash(path)))
 		},
 		ResolveModule: ResolveModuleDir,
-		Stdout:        stdout,
-		Stderr:        stderr,
+		RunTool: func(ctx context.Context, dir string, args ...string) (string, error) {
+			output, err := commandOutput(ctx, dir, "go", args...)
+			return string(output), err
+		},
+		Stdout: stdout,
+		Stderr: stderr,
 	}
 }
 
