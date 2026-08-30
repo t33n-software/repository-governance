@@ -1,7 +1,8 @@
 // Package canonical implements the conformance verifier domain of the
 // repository-governance home: the tenant binding manifest (repo-bindings/v1),
 // the caller-hash and canonical-file proofs, the config-seam conformance
-// proof, the tool-pin admission proof, and the license-lane wiring proof.
+// proof, the tool-pin admission proof, and the license content proof
+// orchestrated through the tenant-pinned hub CLI.
 //
 // The manifest is a typed trust boundary between the fleet and a tenant. It is
 // strictly decoded, versioned, and owned by this home; every proof is

@@ -3,7 +3,7 @@
 // fail-closed: caller hashes and pins, canonical file equality, CODEOWNERS
 // materialization, config-seam conformance, capability-pack resolution
 // against the registry at the tenant's pinned tool stand, tool-pin admission,
-// and license-lane wiring.
+// and the license content proof through the tenant-pinned hub CLI.
 package main
 
 import (

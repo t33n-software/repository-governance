@@ -67,6 +67,14 @@ func TestNewVerifierProductionSeams(t *testing.T) {
 	if verifier.ResolveModule == nil {
 		t.Fatal("the module resolver must be bound")
 	}
+	// The tool execution seam is exercised with a harmless toolchain query.
+	toolOutput, err := verifier.RunTool(context.Background(), root, "version")
+	if err != nil {
+		t.Fatalf("RunTool: %v", err)
+	}
+	if !strings.Contains(toolOutput, "go version") {
+		t.Fatalf("tool output = %q", toolOutput)
+	}
 }
 
 // TestListEntries proves the production seam surfaces files and directories

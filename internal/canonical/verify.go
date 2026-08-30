@@ -34,6 +34,9 @@ type Verifier struct {
 	// ResolveModule resolves a module's cache directory within the tenant's
 	// tooling module context.
 	ResolveModule func(ctx context.Context, dir, module string) (string, error)
+	// RunTool executes the Go toolchain for a tenant-pinned tool invocation
+	// within the tenant root and returns the combined output.
+	RunTool func(ctx context.Context, dir string, args ...string) (string, error)
 	// Stdout receives the per-check report; Stderr receives the findings.
 	Stdout io.Writer
 	Stderr io.Writer
@@ -54,7 +57,7 @@ func (v Verifier) Verify(ctx context.Context, bindings Bindings) []Finding {
 	findings = append(findings, v.verifyExtends(ctx, bindings)...)
 	findings = append(findings, v.verifyToolchain()...)
 	findings = append(findings, v.verifyTools(ctx, bindings)...)
-	findings = append(findings, v.verifyLicense(bindings)...)
+	findings = append(findings, v.verifyLicense(ctx, bindings)...)
 	return findings
 }
 
