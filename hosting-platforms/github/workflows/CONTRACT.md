@@ -13,6 +13,7 @@ canonical callers live at `hosting-platforms/github/workflows/callers/go/`.
 | `.github/workflows/reusable-ci-go.yml` | The canonical Go quality lane | `quality_class` (`linux-only` or `full`) |
 | `.github/workflows/reusable-codeql-go.yml` | The canonical Go CodeQL analysis lane | none |
 | `.github/workflows/reusable-dependency-review.yml` | The dependency admission review | none |
+| `.github/workflows/reusable-release-config.yml` | The release configuration check (GoReleaser) | none |
 
 Every payload carries exclusively `on: workflow_call` and never triggers
 itself. Every action reference inside a payload is a full-length commit SHA
@@ -20,6 +21,11 @@ with a version comment; a bump is a home release event with evidence, followed
 by a fleet pin bump through a reviewed pull request. No payload carries an
 organization name, an endpoint, a credential, workflow-level `GOFLAGS`,
 `cache: true`, or a `pull_request_target` trigger.
+
+A new payload lands before its caller: the caller master and the hash-record
+entry follow with the canonical pin re-issue, because a caller references the
+payload by a full-length home commit SHA and that reference resolves only at a
+revision that already carries the payload.
 
 ## The trigger surface
 

@@ -60,6 +60,7 @@ var payloads = []string{
 	".github/workflows/reusable-ci-go.yml",
 	".github/workflows/reusable-codeql-go.yml",
 	".github/workflows/reusable-dependency-review.yml",
+	".github/workflows/reusable-release-config.yml",
 }
 
 var callers = []string{
@@ -152,6 +153,7 @@ func TestPayloadsPermissionMatrix(t *testing.T) {
 		".github/workflows/reusable-ci-go.yml":             {"contents: read"},
 		".github/workflows/reusable-codeql-go.yml":         {"actions: read", "contents: read", "security-events: write"},
 		".github/workflows/reusable-dependency-review.yml": {"contents: read"},
+		".github/workflows/reusable-release-config.yml":    {"contents: read"},
 	}
 	for payload, permissions := range matrix {
 		t.Run(filepath.Base(payload), func(t *testing.T) {
@@ -293,7 +295,7 @@ func TestCIPayloadFetchesFullHistory(t *testing.T) {
 }
 
 // TestWorkflowAndActionFilesAreWellFormedYAML proves that every workflow and
-// action file of the home parses as well-formed YAML: the three payloads, the
+// action file of the home parses as well-formed YAML: the four payloads, the
 // four caller masters, the two composite actions, and the ten home workflow
 // files (the dogfooding and lifecycle callers). Pin and reference edits touch
 // these files as text; a broken indentation is invisible to the string-based
@@ -319,6 +321,7 @@ func TestPayloadsCarryTheGateJobNames(t *testing.T) {
 		".github/workflows/reusable-ci-go.yml":             "name: ${{ matrix.name }}",
 		".github/workflows/reusable-codeql-go.yml":         "name: CodeQL (go)",
 		".github/workflows/reusable-dependency-review.yml": "name: Dependency admission review",
+		".github/workflows/reusable-release-config.yml":    "name: GoReleaser configuration check",
 	}
 	for payload, jobName := range expectations {
 		t.Run(filepath.Base(payload), func(t *testing.T) {

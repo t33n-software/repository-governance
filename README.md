@@ -2,8 +2,9 @@
 
 `repository-governance` is the canonical home of the repository surface of
 the fleet. It owns everything a repository **carries**: the reusable workflow
-payloads (`reusable-ci-go`, `reusable-codeql-go`, `reusable-dependency-review`),
-the composite actions (`setup-controlled-go`, `verify-canonical-files`), the
+payloads (`reusable-ci-go`, `reusable-codeql-go`, `reusable-dependency-review`,
+`reusable-release-config`), the composite actions (`setup-controlled-go`,
+`verify-canonical-files`), the
 canonical file family (`.gitattributes`, `.gitignore`, `lefthook.yml`,
 `dependabot.yml`, `CODEOWNERS`), the hash-pinned caller contracts, and the
 conformance verifier (`cmd/verify-canonical`) — the proof of carrying.
