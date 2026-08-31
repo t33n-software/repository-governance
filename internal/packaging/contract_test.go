@@ -517,6 +517,30 @@ func TestCodeownersTemplateAndMaterialization(t *testing.T) {
 	}
 }
 
+// TestConventionsTemplate proves the canonical rule-sets conventions README
+// template: the full token surface, the canonical section structure, LF-only
+// bytes, and value freedom — the template never carries an organization,
+// repository, class, or rationale value.
+func TestConventionsTemplate(t *testing.T) {
+	template := readArtifact(t, "hosting-platforms/github/files/conventions/rule-sets-readme.md.tmpl")
+	for _, token := range []string{"{{organization}}", "{{repository}}", "{{class}}", "{{platforms}}", "{{rationale}}"} {
+		if !strings.Contains(template, token) {
+			t.Fatalf("the conventions template must carry the %s token", token)
+		}
+	}
+	for _, section := range []string{"## Canonical source", "## Family in use", "## Bound rule sets", "## Management"} {
+		if !strings.Contains(template, section) {
+			t.Fatalf("the conventions template must carry the section %q", section)
+		}
+	}
+	if strings.Contains(template, "\r") {
+		t.Fatal("the conventions template must be LF-only")
+	}
+	if strings.Contains(template, "t33n") {
+		t.Fatal("the conventions template must stay organization-agnostic")
+	}
+}
+
 func TestSchemasConform(t *testing.T) {
 	schemas := []string{
 		"schemas/repo-bindings/v1/repo-bindings.schema.json",

@@ -176,7 +176,7 @@ func TestVerifierHomePathsExistInTheHomeLayout(t *testing.T) {
 			t.Fatalf("the verifier home path %q does not exist in the home layout: %v", topic.homePath, err)
 		}
 	}
-	for _, path := range []string{codeownersTemplatePath, callerHashesPath} {
+	for _, path := range []string{codeownersTemplatePath, conventionsTemplatePath, callerHashesPath} {
 		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(path))); err != nil {
 			t.Fatalf("the verifier home path %q does not exist in the home layout: %v", path, err)
 		}

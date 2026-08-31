@@ -64,6 +64,9 @@ func TestDecodeBindingsAcceptsTheReferenceManifest(t *testing.T) {
 	if bindings.Codeowners.DefaultOwner != "@CyberT33N" {
 		t.Fatalf("Codeowners = %+v", bindings.Codeowners)
 	}
+	if bindings.Conventions != nil {
+		t.Fatalf("Conventions = %+v", bindings.Conventions)
+	}
 	if bindings.Quality.SchemaVersion != 4 {
 		t.Fatalf("Quality = %+v", bindings.Quality)
 	}
@@ -76,6 +79,82 @@ func TestDecodeBindingsAcceptsAnOptionalVersionlessHome(t *testing.T) {
 	manifest := strings.Replace(validBindingsJSON(), `"version": "v1.0.0",`, `"version": "",`, 1)
 	if _, err := DecodeBindings([]byte(manifest)); err != nil {
 		t.Fatalf("DecodeBindings without a version: %v", err)
+	}
+}
+
+// validBindingsWithConventionsJSON carries the optional conventions section.
+func validBindingsWithConventionsJSON() string {
+	return strings.Replace(validBindingsJSON(), `  "codeowners": { "path": ".github/CODEOWNERS", "defaultOwner": "@CyberT33N" },`, `  "codeowners": { "path": ".github/CODEOWNERS", "defaultOwner": "@CyberT33N" },
+  "conventions": { "path": "docs/conventions/hosting-platforms/github/rule-sets/README.md", "organization": "t33n-software", "repository": "supply-chain-governance", "rationale": "Portable schemas only." },`, 1)
+}
+
+func TestDecodeBindingsAcceptsConventions(t *testing.T) {
+	bindings, err := DecodeBindings([]byte(validBindingsWithConventionsJSON()))
+	if err != nil {
+		t.Fatalf("DecodeBindings: %v", err)
+	}
+	if bindings.Conventions == nil {
+		t.Fatal("Conventions must be bound")
+	}
+	if bindings.Conventions.Path != "docs/conventions/hosting-platforms/github/rule-sets/README.md" {
+		t.Fatalf("Conventions.Path = %q", bindings.Conventions.Path)
+	}
+	if bindings.Conventions.Organization != "t33n-software" {
+		t.Fatalf("Conventions.Organization = %q", bindings.Conventions.Organization)
+	}
+	if bindings.Conventions.Repository != "supply-chain-governance" {
+		t.Fatalf("Conventions.Repository = %q", bindings.Conventions.Repository)
+	}
+	if bindings.Conventions.Rationale != "Portable schemas only." {
+		t.Fatalf("Conventions.Rationale = %q", bindings.Conventions.Rationale)
+	}
+}
+
+func TestDecodeBindingsConventionsRejections(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(string) string
+		message string
+	}{
+		{
+			name: "empty organization",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"organization": "t33n-software"`, `"organization": ""`, 1)
+			},
+			message: "conventions.organization",
+		},
+		{
+			name: "empty repository",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"repository": "supply-chain-governance"`, `"repository": ""`, 1)
+			},
+			message: "conventions.repository",
+		},
+		{
+			name: "empty rationale",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"rationale": "Portable schemas only."`, `"rationale": ""`, 1)
+			},
+			message: "conventions.rationale",
+		},
+		{
+			name: "bad path",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"path": "docs/conventions/hosting-platforms/github/rule-sets/README.md"`, `"path": "../README.md"`, 1)
+			},
+			message: "conventions.path",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := DecodeBindings([]byte(test.mutate(validBindingsWithConventionsJSON())))
+			if err == nil {
+				t.Fatalf("expected rejection containing %q", test.message)
+			}
+			if !strings.Contains(err.Error(), test.message) {
+				t.Fatalf("error %q does not contain %q", err.Error(), test.message)
+			}
+		})
 	}
 }
 

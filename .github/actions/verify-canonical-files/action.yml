@@ -2,9 +2,9 @@ name: Verify canonical files
 description: >-
   Runs the canonical conformance verifier (verify-canonical) against the
   calling repository: caller hashes and pins, canonical file equality,
-  CODEOWNERS materialization, config-seam conformance, capability-pack
-  resolution, tool-pin admission, and the license content proof through the
-  tenant-pinned hub CLI.
+  CODEOWNERS and conventions README materialization, config-seam conformance,
+  capability-pack resolution, tool-pin admission, and the license content
+  proof through the tenant-pinned hub CLI.
 inputs:
   repo:
     description: The repository root to verify.

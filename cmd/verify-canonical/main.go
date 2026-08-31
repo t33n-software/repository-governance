@@ -1,7 +1,8 @@
 // Command verify-canonical is the conformance verifier of the
 // repository-governance home. It proves a tenant's canonical bindings
 // fail-closed: caller hashes and pins, canonical file equality, CODEOWNERS
-// materialization, config-seam conformance, capability-pack resolution
+// and conventions README materialization, config-seam conformance,
+// capability-pack resolution
 // against the registry at the tenant's pinned tool stand, tool-pin admission,
 // and the license content proof through the tenant-pinned hub CLI.
 package main
