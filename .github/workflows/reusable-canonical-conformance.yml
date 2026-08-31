@@ -17,4 +17,4 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Verify canonical bindings
-        uses: t33n-software/repository-governance/.github/actions/verify-canonical-files@73adc42b530261a06cfb9c25790a5c100ca97707
+        uses: t33n-software/repository-governance/.github/actions/verify-canonical-files@f38487662a91b52ad026c9c8c2333f008b4757e4
