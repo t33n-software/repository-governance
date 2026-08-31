@@ -31,11 +31,12 @@ revision that already carries the payload.
 
 The callers trigger on push and pull request to `main`, `develop`,
 `release/**`, and `support/**`, plus a schedule and `workflow_dispatch`
-(`dependency-review.yml` is pull-request-native). Trigger completeness is a
-precondition for the first release cut: the shared-line rulesets are
-pre-positioned and bind every future matching ref from its first commit, so a
-missing trigger family would block the first pull request to that line
-fail-closed.
+(`dependency-review.yml` is pull-request-native; `release-config.yml` carries
+no schedule — the configuration changes only with commits). Trigger
+completeness is a precondition for the first release cut: the shared-line
+rulesets are pre-positioned and bind every future matching ref from its first
+commit, so a missing trigger family would block the first pull request to that
+line fail-closed.
 
 ## The permission model
 
@@ -50,6 +51,7 @@ bound grants:
 | `ci.yml` / `ci-full.yml` | `contents: read` | `contents: read` |
 | `codeql.yml` | `actions: read`, `contents: read`, `security-events: write` | the same three |
 | `dependency-review.yml` | `contents: read` | `contents: read` |
+| `release-config.yml` | `contents: read` | `contents: read` |
 
 ## The check-context model
 
@@ -65,6 +67,7 @@ are contract, because the shared-line rulesets bind the exact strings:
 | `ci-full.yml` | `Quality gates` | the matrix variant | `Quality gates / linux-amd64`, `Quality gates / macos-arm64`, `Quality gates / windows-amd64` |
 | `codeql.yml` | `CodeQL` | `CodeQL (go)` | `CodeQL / CodeQL (go)` |
 | `dependency-review.yml` | `Dependency review` | `Dependency admission review` | `Dependency review / Dependency admission review` |
+| `release-config.yml` | `Release configuration` | `GoReleaser configuration check` | `Release configuration / GoReleaser configuration check` |
 
 The CodeQL merge gate consumes the SARIF result through the `code_scanning`
 ruleset rule (tool-bound, not context-bound); the status-check contexts of the

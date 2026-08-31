@@ -68,6 +68,7 @@ var callers = []string{
 	"hosting-platforms/github/workflows/callers/go/ci-full.yml",
 	"hosting-platforms/github/workflows/callers/go/codeql.yml",
 	"hosting-platforms/github/workflows/callers/go/dependency-review.yml",
+	"hosting-platforms/github/workflows/callers/go/release-config.yml",
 }
 
 // compositeActions lists the home's composite actions.
@@ -296,7 +297,7 @@ func TestCIPayloadFetchesFullHistory(t *testing.T) {
 
 // TestWorkflowAndActionFilesAreWellFormedYAML proves that every workflow and
 // action file of the home parses as well-formed YAML: the four payloads, the
-// four caller masters, the two composite actions, and the ten home workflow
+// five caller masters, the two composite actions, and the ten home workflow
 // files (the dogfooding and lifecycle callers). Pin and reference edits touch
 // these files as text; a broken indentation is invisible to the string-based
 // guards but breaks every YAML consumer, so the drift watcher parses each
@@ -364,6 +365,7 @@ func TestCallersCarryTheExactJobNamesAndGrants(t *testing.T) {
 		"hosting-platforms/github/workflows/callers/go/ci-full.yml":           {"  quality:\n    name: Quality gates\n", "quality_class: full", "contents: read"},
 		"hosting-platforms/github/workflows/callers/go/codeql.yml":            {"  analyze:\n    name: CodeQL\n", "actions: read", "contents: read", "security-events: write"},
 		"hosting-platforms/github/workflows/callers/go/dependency-review.yml": {"  dependency-review:\n    name: Dependency review\n", "contents: read"},
+		"hosting-platforms/github/workflows/callers/go/release-config.yml":    {"  release-config:\n    name: Release configuration\n", "contents: read"},
 	}
 	for caller, required := range expectations {
 		t.Run(filepath.Base(caller), func(t *testing.T) {
