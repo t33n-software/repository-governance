@@ -2,38 +2,44 @@
   "schemaVersion": 1,
   "home": {
     "repository": "t33n-software/repository-governance",
-    "sha": "73adc42b530261a06cfb9c25790a5c100ca97707"
+    "sha": "f38487662a91b52ad026c9c8c2333f008b4757e4"
   },
   "callers": [
     {
       "master": "hosting-platforms/github/workflows/callers/go/ci.yml",
       "tenantFile": ".github/workflows/ci.yml",
       "class": "linux-only",
-      "sha256": "46156e52e9627e63be7d5b0732c5966310db50cad003ec89cd0bbc62328630f8"
+      "sha256": "9f4098e66455b0c70a14fe1efc96ff6196965603d7cb07953d61e246a2247dd7"
     },
     {
       "master": "hosting-platforms/github/workflows/callers/go/ci-full.yml",
       "tenantFile": ".github/workflows/ci.yml",
       "class": "full",
-      "sha256": "d4f41984aad5be76481ffa21f7fdd4b0463e248b5ecab4484cf134a4fd92a6e9"
+      "sha256": "54cc6918c34f439dedf5dff71418b4763bc8429ce8f697191af7d8d03275b053"
     },
     {
       "master": "hosting-platforms/github/workflows/callers/go/codeql.yml",
       "tenantFile": ".github/workflows/codeql.yml",
       "class": "",
-      "sha256": "7839f1c0ae4393eea9bce548939eba3417de0987ea3691a692bff2556cd99f53"
+      "sha256": "473d6ff8462040a75cb59787ee4b74928d8a7d743fddd238aad9b8aa98336820"
     },
     {
       "master": "hosting-platforms/github/workflows/callers/go/dependency-review.yml",
       "tenantFile": ".github/workflows/dependency-review.yml",
       "class": "",
-      "sha256": "6dbd6991ff77a7b5ee579bf4cf60cba0b61e432aff9383e9f2a6059f819716a2"
+      "sha256": "a41d637b81304a5a144aa55297ca0608d3e52f68a958ce6da8762620d84b8e57"
     },
     {
       "master": "hosting-platforms/github/workflows/callers/go/release-config.yml",
       "tenantFile": ".github/workflows/release-config.yml",
       "class": "",
-      "sha256": "823bfc3ef0a8c1ea511d1dc5f8d1d61d81766bbe4f101961f9ac1521342e13f0"
+      "sha256": "2c9001b0f87ba7f63e11a33956b3e8a742a33bb4d0165715a02fe22d1c2a5191"
+    },
+    {
+      "master": "hosting-platforms/github/workflows/callers/go/canonical-conformance.yml",
+      "tenantFile": ".github/workflows/canonical-conformance.yml",
+      "class": "",
+      "sha256": "2154a663834d58677cafeebec82e6be7bccd1d4312d041f3ffa26aa27d05c522"
     }
   ]
 }

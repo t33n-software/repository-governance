@@ -11,4 +11,4 @@ jobs:
     name: Dependency review
     permissions:
       contents: read
-    uses: t33n-software/repository-governance/.github/workflows/reusable-dependency-review.yml@73adc42b530261a06cfb9c25790a5c100ca97707
+    uses: t33n-software/repository-governance/.github/workflows/reusable-dependency-review.yml@f38487662a91b52ad026c9c8c2333f008b4757e4
