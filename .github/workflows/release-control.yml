@@ -44,7 +44,7 @@ jobs:
       contents: read
       deployments: write
       id-token: write
-    uses: t33n-software/git-governance/.github/workflows/reusable-release-control.yml@3b0d034fc773b38dd13e3b13b24d1cbd7c2b0368
+    uses: t33n-software/git-governance/.github/workflows/reusable-release-control.yml@902557ff776d89b7ff53554ccede247826dce781
     with:
       operation: ${{ inputs.operation }}
       version: ${{ inputs.version }}
