@@ -1,0 +1,17 @@
+name: Release Config
+
+on:
+  push:
+    branches: [main, develop, "release/**", "support/**"]
+  pull_request:
+    branches: [main, develop, "release/**", "support/**"]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  release-config:
+    name: Release configuration
+    permissions:
+      contents: read
+    uses: t33n-software/repository-governance/.github/workflows/reusable-release-config.yml@73adc42b530261a06cfb9c25790a5c100ca97707
