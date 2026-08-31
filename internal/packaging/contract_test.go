@@ -61,6 +61,7 @@ var payloads = []string{
 	".github/workflows/reusable-codeql-go.yml",
 	".github/workflows/reusable-dependency-review.yml",
 	".github/workflows/reusable-release-config.yml",
+	".github/workflows/reusable-canonical-conformance.yml",
 }
 
 var callers = []string{
@@ -122,6 +123,13 @@ func TestPayloadsPinEveryAction(t *testing.T) {
 				if !actionSHA.MatchString(uses) {
 					t.Fatalf("%s carries an unpinned action reference: %q", payload, uses)
 				}
+				// The home self-reference tracks the canonical home pin (bound by
+				// TestConformancePayloadTracksTheCanonicalPin); its version comment
+				// lands with the home release the pin belongs to. Third-party
+				// references always carry the release version comment.
+				if strings.HasPrefix(uses, "t33n-software/repository-governance/") {
+					continue
+				}
 				if !strings.Contains(uses, " # v") {
 					t.Fatalf("%s carries no version comment: %q", payload, uses)
 				}
@@ -151,10 +159,11 @@ func TestPayloadsCarryNoForbiddenPatterns(t *testing.T) {
 
 func TestPayloadsPermissionMatrix(t *testing.T) {
 	matrix := map[string][]string{
-		".github/workflows/reusable-ci-go.yml":             {"contents: read"},
-		".github/workflows/reusable-codeql-go.yml":         {"actions: read", "contents: read", "security-events: write"},
-		".github/workflows/reusable-dependency-review.yml": {"contents: read"},
-		".github/workflows/reusable-release-config.yml":    {"contents: read"},
+		".github/workflows/reusable-ci-go.yml":                 {"contents: read"},
+		".github/workflows/reusable-codeql-go.yml":             {"actions: read", "contents: read", "security-events: write"},
+		".github/workflows/reusable-dependency-review.yml":     {"contents: read"},
+		".github/workflows/reusable-release-config.yml":        {"contents: read"},
+		".github/workflows/reusable-canonical-conformance.yml": {"contents: read"},
 	}
 	for payload, permissions := range matrix {
 		t.Run(filepath.Base(payload), func(t *testing.T) {
@@ -187,13 +196,28 @@ func TestPayloadsBoundedExecution(t *testing.T) {
 	}
 }
 
+// TestPayloadsAreOrganizationAgnostic proves the payloads carry no
+// organization-bound values: no endpoints, no credentials, no organization
+// data. The single permitted occurrence of the home coordinate is a
+// self-reference in a uses line — the payload's reference to the home's own
+// composite action at the canonical pin, which is the artifact's identity,
+// never tenant or organization data.
 func TestPayloadsAreOrganizationAgnostic(t *testing.T) {
 	for _, payload := range payloads {
 		t.Run(filepath.Base(payload), func(t *testing.T) {
 			content := readArtifact(t, payload)
-			for _, forbidden := range []string{"t33n", "pkg.dev", "googleapis", "gcloud"} {
+			for _, forbidden := range []string{"pkg.dev", "googleapis", "gcloud"} {
 				if strings.Contains(content, forbidden) {
 					t.Fatalf("%s carries the organization-bound literal %q", payload, forbidden)
+				}
+			}
+			for _, line := range strings.Split(content, "\n") {
+				if !strings.Contains(line, "t33n") {
+					continue
+				}
+				uses, found := strings.CutPrefix(strings.TrimSpace(line), "uses: ")
+				if !found || !strings.HasPrefix(uses, "t33n-software/repository-governance/") {
+					t.Fatalf("%s carries the organization-bound literal %q", payload, strings.TrimSpace(line))
 				}
 			}
 		})
@@ -296,7 +320,7 @@ func TestCIPayloadFetchesFullHistory(t *testing.T) {
 }
 
 // TestWorkflowAndActionFilesAreWellFormedYAML proves that every workflow and
-// action file of the home parses as well-formed YAML: the four payloads, the
+// action file of the home parses as well-formed YAML: the five payloads, the
 // five caller masters, the two composite actions, and the ten home workflow
 // files (the dogfooding and lifecycle callers). Pin and reference edits touch
 // these files as text; a broken indentation is invisible to the string-based
@@ -319,10 +343,11 @@ func TestWorkflowAndActionFilesAreWellFormedYAML(t *testing.T) {
 
 func TestPayloadsCarryTheGateJobNames(t *testing.T) {
 	expectations := map[string]string{
-		".github/workflows/reusable-ci-go.yml":             "name: ${{ matrix.name }}",
-		".github/workflows/reusable-codeql-go.yml":         "name: CodeQL (go)",
-		".github/workflows/reusable-dependency-review.yml": "name: Dependency admission review",
-		".github/workflows/reusable-release-config.yml":    "name: GoReleaser configuration check",
+		".github/workflows/reusable-ci-go.yml":                 "name: ${{ matrix.name }}",
+		".github/workflows/reusable-codeql-go.yml":             "name: CodeQL (go)",
+		".github/workflows/reusable-dependency-review.yml":     "name: Dependency admission review",
+		".github/workflows/reusable-release-config.yml":        "name: GoReleaser configuration check",
+		".github/workflows/reusable-canonical-conformance.yml": "name: Canonical bindings verification",
 	}
 	for payload, jobName := range expectations {
 		t.Run(filepath.Base(payload), func(t *testing.T) {
@@ -474,6 +499,38 @@ func TestConformanceActionTracksTheCanonicalPin(t *testing.T) {
 	}
 	if reference != document.Home.SHA {
 		t.Fatalf("the verify-canonical-files action references setup-controlled-go at %s, not the canonical home pin %s", reference, document.Home.SHA)
+	}
+}
+
+// TestConformancePayloadTracksTheCanonicalPin proves the conformance payload
+// references the verify-canonical-files action at the canonical home pin: the
+// reference must never lag behind or jump ahead of the pin the fleet binds.
+func TestConformancePayloadTracksTheCanonicalPin(t *testing.T) {
+	record := readArtifact(t, "hosting-platforms/github/workflows/callers/go/caller-hashes.json")
+	var document struct {
+		Home struct {
+			SHA string `json:"sha"`
+		} `json:"home"`
+	}
+	if err := json.Unmarshal([]byte(record), &document); err != nil {
+		t.Fatalf("the caller-hashes record is not valid JSON: %v", err)
+	}
+	payload := readArtifact(t, ".github/workflows/reusable-canonical-conformance.yml")
+	reference := ""
+	for _, line := range strings.Split(payload, "\n") {
+		trimmed := strings.TrimSpace(line)
+		uses, found := strings.CutPrefix(trimmed, "uses: ")
+		if !found || !strings.Contains(uses, "/.github/actions/verify-canonical-files@") {
+			continue
+		}
+		_, sha, _ := strings.Cut(uses, "@")
+		reference = strings.TrimSpace(sha)
+	}
+	if reference == "" {
+		t.Fatal("the conformance payload carries no verify-canonical-files reference")
+	}
+	if reference != document.Home.SHA {
+		t.Fatalf("the conformance payload references verify-canonical-files at %s, not the canonical home pin %s", reference, document.Home.SHA)
 	}
 }
 

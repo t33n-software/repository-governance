@@ -14,6 +14,7 @@ canonical callers live at `hosting-platforms/github/workflows/callers/go/`.
 | `.github/workflows/reusable-codeql-go.yml` | The canonical Go CodeQL analysis lane | none |
 | `.github/workflows/reusable-dependency-review.yml` | The dependency admission review | none |
 | `.github/workflows/reusable-release-config.yml` | The release configuration check (GoReleaser) | none |
+| `.github/workflows/reusable-canonical-conformance.yml` | The canonical conformance proof (the verify-canonical orchestration through the home's composite action at the canonical pin) | none |
 
 Every payload carries exclusively `on: workflow_call` and never triggers
 itself. Every action reference inside a payload is a full-length commit SHA
@@ -31,8 +32,9 @@ revision that already carries the payload.
 
 The callers trigger on push and pull request to `main`, `develop`,
 `release/**`, and `support/**`, plus a schedule and `workflow_dispatch`
-(`dependency-review.yml` is pull-request-native; `release-config.yml` carries
-no schedule — the configuration changes only with commits). Trigger
+(`dependency-review.yml` is pull-request-native; `release-config.yml` and
+`canonical-conformance.yml` carry no schedule — the configuration and the
+bindings change only with commits). Trigger
 completeness is a precondition for the first release cut: the shared-line
 rulesets are pre-positioned and bind every future matching ref from its first
 commit, so a missing trigger family would block the first pull request to that
@@ -52,6 +54,7 @@ bound grants:
 | `codeql.yml` | `actions: read`, `contents: read`, `security-events: write` | the same three |
 | `dependency-review.yml` | `contents: read` | `contents: read` |
 | `release-config.yml` | `contents: read` | `contents: read` |
+| `canonical-conformance.yml` | `contents: read` | `contents: read` |
 
 ## The check-context model
 
@@ -68,6 +71,7 @@ are contract, because the shared-line rulesets bind the exact strings:
 | `codeql.yml` | `CodeQL` | `CodeQL (go)` | `CodeQL / CodeQL (go)` |
 | `dependency-review.yml` | `Dependency review` | `Dependency admission review` | `Dependency review / Dependency admission review` |
 | `release-config.yml` | `Release configuration` | `GoReleaser configuration check` | `Release configuration / GoReleaser configuration check` |
+| `canonical-conformance.yml` | `Canonical conformance` | `Canonical bindings verification` | `Canonical conformance / Canonical bindings verification` |
 
 The CodeQL merge gate consumes the SARIF result through the `code_scanning`
 ruleset rule (tool-bound, not context-bound); the status-check contexts of the
