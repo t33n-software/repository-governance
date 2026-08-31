@@ -6,7 +6,8 @@ payloads (`reusable-ci-go`, `reusable-codeql-go`, `reusable-dependency-review`,
 `reusable-release-config`), the composite actions (`setup-controlled-go`,
 `verify-canonical-files`), the
 canonical file family (`.gitattributes`, `.gitignore`, `lefthook.yml`,
-`dependabot.yml`, `CODEOWNERS`), the hash-pinned caller contracts, and the
+`dependabot.yml`, `CODEOWNERS`, and the rule-sets conventions README render
+theme), the hash-pinned caller contracts, and the
 conformance verifier (`cmd/verify-canonical`) — the proof of carrying.
 
 ## Artifacts

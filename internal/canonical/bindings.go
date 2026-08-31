@@ -1,8 +1,9 @@
 // Package canonical implements the conformance verifier domain of the
 // repository-governance home: the tenant binding manifest (repo-bindings/v1),
-// the caller-hash and canonical-file proofs, the config-seam conformance
-// proof, the tool-pin admission proof, and the license content proof
-// orchestrated through the tenant-pinned hub CLI.
+// the caller-hash and canonical-file proofs, the CODEOWNERS and conventions
+// README materialization proofs, the config-seam conformance proof, the
+// tool-pin admission proof, and the license content proof orchestrated
+// through the tenant-pinned hub CLI.
 //
 // The manifest is a typed trust boundary between the fleet and a tenant. It is
 // strictly decoded, versioned, and owned by this home; every proof is
@@ -83,6 +84,14 @@ type CodeownersBinding struct {
 	DefaultOwner string
 }
 
+// ConventionsBinding binds the rule-sets conventions README render values.
+type ConventionsBinding struct {
+	Path         string
+	Organization string
+	Repository   string
+	Rationale    string
+}
+
 // QualityBinding binds the config-seam expectations.
 type QualityBinding struct {
 	Config        string
@@ -103,21 +112,25 @@ type Bindings struct {
 	Callers       []CallerBinding
 	Files         FileBindings
 	Codeowners    CodeownersBinding
-	Quality       QualityBinding
-	Tools         ToolsBinding
+	// Conventions carries the conventions README render binding; nil skips
+	// the proof for tenants that do not carry the family.
+	Conventions *ConventionsBinding
+	Quality     QualityBinding
+	Tools       ToolsBinding
 }
 
 // bindingsDocument is the wire form of the manifest. Unknown fields are
 // rejected at decode time.
 type bindingsDocument struct {
-	SchemaVersion int            `json:"schemaVersion"`
-	Home          homeJSON       `json:"home"`
-	Class         classJSON      `json:"class"`
-	Callers       []callerJSON   `json:"callers"`
-	Files         filesJSON      `json:"files"`
-	Codeowners    codeownersJSON `json:"codeowners"`
-	Quality       qualityJSON    `json:"quality"`
-	Tools         toolsJSON      `json:"tools"`
+	SchemaVersion int              `json:"schemaVersion"`
+	Home          homeJSON         `json:"home"`
+	Class         classJSON        `json:"class"`
+	Callers       []callerJSON     `json:"callers"`
+	Files         filesJSON        `json:"files"`
+	Codeowners    codeownersJSON   `json:"codeowners"`
+	Conventions   *conventionsJSON `json:"conventions"`
+	Quality       qualityJSON      `json:"quality"`
+	Tools         toolsJSON        `json:"tools"`
 }
 
 type homeJSON struct {
@@ -153,6 +166,13 @@ type filesJSON struct {
 type codeownersJSON struct {
 	Path         string `json:"path"`
 	DefaultOwner string `json:"defaultOwner"`
+}
+
+type conventionsJSON struct {
+	Path         string `json:"path"`
+	Organization string `json:"organization"`
+	Repository   string `json:"repository"`
+	Rationale    string `json:"rationale"`
 }
 
 type qualityJSON struct {
@@ -204,6 +224,9 @@ func validateDocument(document bindingsDocument) (Bindings, error) {
 	if err := validateCodeowners(document.Codeowners); err != nil {
 		return Bindings{}, err
 	}
+	if err := validateConventions(document.Conventions); err != nil {
+		return Bindings{}, err
+	}
 	if err := validateQuality(document.Quality); err != nil {
 		return Bindings{}, err
 	}
@@ -213,6 +236,15 @@ func validateDocument(document bindingsDocument) (Bindings, error) {
 	callers, err := validateCallers(document.Callers)
 	if err != nil {
 		return Bindings{}, err
+	}
+	var conventions *ConventionsBinding
+	if document.Conventions != nil {
+		conventions = &ConventionsBinding{
+			Path:         document.Conventions.Path,
+			Organization: document.Conventions.Organization,
+			Repository:   document.Conventions.Repository,
+			Rationale:    document.Conventions.Rationale,
+		}
 	}
 
 	return Bindings{
@@ -238,6 +270,7 @@ func validateDocument(document bindingsDocument) (Bindings, error) {
 			Path:         document.Codeowners.Path,
 			DefaultOwner: document.Codeowners.DefaultOwner,
 		},
+		Conventions: conventions,
 		Quality: QualityBinding{
 			Config:        document.Quality.Config,
 			SchemaVersion: document.Quality.SchemaVersion,
@@ -327,6 +360,27 @@ func validateCodeowners(codeowners codeownersJSON) error {
 	}
 	if codeowners.DefaultOwner == "" {
 		return errors.New("codeowners.defaultOwner must not be empty")
+	}
+	return nil
+}
+
+// validateConventions validates the optional conventions render binding; a
+// nil binding skips the family.
+func validateConventions(conventions *conventionsJSON) error {
+	if conventions == nil {
+		return nil
+	}
+	if err := validateManifestPath("conventions.path", conventions.Path); err != nil {
+		return err
+	}
+	if conventions.Organization == "" {
+		return errors.New("conventions.organization must not be empty")
+	}
+	if conventions.Repository == "" {
+		return errors.New("conventions.repository must not be empty")
+	}
+	if conventions.Rationale == "" {
+		return errors.New("conventions.rationale must not be empty")
 	}
 	return nil
 }

@@ -68,7 +68,12 @@ On a tenant pull request it proves, fail-closed:
    the pinned tool proves pin integrity, drift freedom, and completeness of
    the committed instance fail-closed — the verification semantics live
    exactly once in the license hub and are never re-implemented by the
-   verifier.
+   verifier;
+8. where the manifest binds the conventions family, the tenant's rule-sets
+   conventions README is the exact materialization of the canonical
+   value-free template with the manifest's values (organization, repository,
+   rationale) and the class-derived platform sentence; a class without a
+   canonical render fails closed.
 
 The tenant's binding manifest (`repo-bindings.json`) is strictly decoded
 against `schemas/repo-bindings/v1/repo-bindings.schema.json`; the home's
@@ -92,7 +97,9 @@ the gate job names of the payloads, the callers'
 four-shared-line trigger coverage and exact job names, the byte identity
 between the home's own callers and the canonical masters, the caller-hashes
 record against the recomputed master content, the canonical file family, the
-CODEOWNERS template and its materialization, the schema conformance, the
+CODEOWNERS template and its materialization, the conventions README template
+(token surface, value freedom, canonical section structure), the schema
+conformance, the
 conformance vectors, the home's own binding manifest self-consistency, the
 home's own `go.mod` toolchain directive, and the absence of legacy artifacts
 (`_BAK` files, JSON payload copies in `docs/`).
