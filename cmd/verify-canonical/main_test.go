@@ -176,7 +176,7 @@ func TestMain(t *testing.T) {
 // minimalBindings is the smallest manifest that decodes.
 func minimalBindings() string {
 	return `{
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "home": { "repository": "t33n-software/repository-governance", "sha": "89be739ee8a1d1ed6ebbe97dd1556a253477d242" },
   "class": { "qualityGates": "linux-only", "codeScanning": true, "licenseHub": false },
   "callers": [
@@ -189,7 +189,7 @@ func minimalBindings() string {
   "files": {
     "lefthook": { "path": "lefthook.yml", "sha256": "` + strings.Repeat("a", 64) + `" },
     "gitattributes": { "path": ".gitattributes", "sha256": "` + strings.Repeat("b", 64) + `" },
-    "gitignore": { "path": ".gitignore", "sha256": "` + strings.Repeat("c", 64) + `" },
+    "gitignore": { "path": ".gitignore", "fragments": ["core"], "sha256": "` + strings.Repeat("c", 64) + `" },
     "dependabot": { "path": ".github/dependabot.yml", "sha256": "` + strings.Repeat("d", 64) + `" }
   },
   "codeowners": { "path": ".github/CODEOWNERS", "defaultOwner": "@CyberT33N" },

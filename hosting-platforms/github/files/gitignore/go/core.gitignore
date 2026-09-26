@@ -1,0 +1,4 @@
+# Go toolchain artifacts.
+*.coverprofile
+*.test
+*.cov

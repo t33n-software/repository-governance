@@ -13,7 +13,7 @@ canonical callers, and the canonical file family.
 | `workflows/callers/go/` | The canonical, hash-pinned callers (`ci.yml`, `ci-full.yml`, `codeql.yml`, `dependency-review.yml`) plus their `caller-hashes.json` record |
 | `actions/CONTRACT.md` | The binding contract of the composite action family |
 | `files/gitattributes/.gitattributes` | The byte-identical line-ending contract |
-| `files/gitignore/.gitignore` | The canonical core block plus the marked project-block convention |
+| `files/gitignore/` | The fragment tree (`core.gitignore` plus `<area>/core.gitignore` and `<area>/<concern>.gitignore`), composed at bind time into one physical tenant file |
 | `files/lefthook/lefthook.yml` | The canonical hook core (calls only the Git CLI); bound blocks compose at render time |
 | `files/dependabot/dependabot-go.yml` | The canonical Dependabot variant for the Go ecosystem class |
 | `files/codeowners/CODEOWNERS.tmpl` | The ownership template; values render from the tenant's binding manifest |

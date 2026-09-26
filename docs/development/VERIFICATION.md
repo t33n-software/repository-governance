@@ -53,8 +53,12 @@ On a tenant pull request it proves, fail-closed:
    setup action resolve fail-closed and install exactly through
    `go-version` (never the `go` directive, never the latest patch);
 4. the canonical file family matches the bound hashes — byte-identical for
-   `lefthook.yml`, `.gitattributes`, and `dependabot.yml`, and the canonical
-   core as a verbatim prefix for `.gitignore`;
+   `lefthook.yml`, `.gitattributes`, and `dependabot.yml`; the `.gitignore`
+   topic re-renders the bound fragment list from the pinned home tree and
+   proves the rendered governed region byte-exact against the bound hash and
+   as a verbatim prefix of the tenant file — and, where the license-hub class
+   is bound, the composed tenant file is proven to never ignore the protected
+   license family;
 5. `.github/CODEOWNERS` is the exact materialization of the canonical template
    with the manifest's values;
 6. the canonical tool catalog carries its bound `$schema` identity — asserted
@@ -76,11 +80,13 @@ On a tenant pull request it proves, fail-closed:
    canonical render fails closed.
 
 The tenant's binding manifest (`repo-bindings.json`) is strictly decoded
-against `schemas/repo-bindings/v1/repo-bindings.schema.json`; the home's
+against `schemas/repo-bindings/v2/repo-bindings.schema.json`; the home's
 published caller hashes follow
 `schemas/caller-hashes/v1/caller-hashes.schema.json`; the
 `conformance/{positive,negative}/` vectors prove every acceptance and every
-rejection of the manifest decoder. Every schema document carries the
+rejection of the manifest decoder, and the golden renders under
+`conformance/gitignore/` prove every registered gitignore fragment set
+against the real home tree. Every schema document carries the
 `.schema.json` suffix — the canonical naming convention for schema files.
 
 ## The contract-test set
@@ -97,6 +103,12 @@ the gate job names of the payloads, the callers'
 four-shared-line trigger coverage and exact job names, the byte identity
 between the home's own callers and the canonical masters, the caller-hashes
 record against the recomputed master content, the canonical file family, the
+gitignore fragment tree (the registered fragments, the superseded single-core
+master's absence, the mark freedom, and the org core's secret-artifact
+coverage), the golden renders of every registered fragment set, the
+composition invariants (the overlap guard and the pattern-free committed
+lockfile policy fragment), the home's own `.gitignore` as the rendered
+composition of its bound fragments at its bound pin, the
 CODEOWNERS template and its materialization, the conventions README template
 (token surface, value freedom, canonical section structure), the schema
 conformance, the

@@ -1,4 +1,4 @@
-# canonical: gitignore core + go/core @ f38487662a91b52ad026c9c8c2333f008b4757e4 — governed region, do not edit
+# canonical: gitignore core @ 0123456789abcdef0123456789abcdef01234567 — governed region, do not edit
 # Local build and test outputs.
 /.build/
 /dist/
@@ -25,11 +25,5 @@ credentials.*
 *.kdbx
 *.ppk
 *.gpg
-
-# go/core
-# Go toolchain artifacts.
-*.coverprofile
-*.test
-*.cov
 
 # -- project additions below this line --

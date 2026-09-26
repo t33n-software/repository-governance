@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "home": {
     "repository": "t33n-software/repository-governance",
     "version": "v1.0.0",
@@ -30,7 +30,7 @@
   "files": {
     "lefthook": { "path": "lefthook.yml", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
     "gitattributes": { "path": ".gitattributes", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
-    "gitignore": { "path": ".gitignore", "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" },
+    "gitignore": { "path": ".gitignore", "fragments": ["core"], "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" },
     "dependabot": { "path": ".github/dependabot.yml", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" }
   },
   "codeowners": { "path": ".github/CODEOWNERS", "defaultOwner": "@CyberT33N" },

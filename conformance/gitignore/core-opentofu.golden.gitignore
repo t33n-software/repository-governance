@@ -1,0 +1,51 @@
+# canonical: gitignore core + opentofu/core @ 0123456789abcdef0123456789abcdef01234567 — governed region, do not edit
+# Local build and test outputs.
+/.build/
+/dist/
+/coverage/
+/.cache/
+
+# Universal toolchain output suffix.
+*.out
+
+# Never-commit secret-artifact guard (the client-side projection of the
+# server-side push boundary).
+.env
+.env.*
+.envrc
+.env*.local
+credentials
+credentials.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.kdbx
+*.ppk
+*.gpg
+
+# opentofu/core
+# OpenTofu engine-local surfaces.
+**/.terraform/
+.terraformrc
+terraform.rc
+crash.log
+crash.*.log
+
+# Infrastructure state (secret-shaped; additionally blocked at the server-side
+# boundary).
+*.tfstate
+*.tfstate.*
+*.tfplan
+
+# Instance bindings (the values are governed elsewhere).
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# -- project additions below this line --
