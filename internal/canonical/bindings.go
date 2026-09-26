@@ -21,7 +21,7 @@ import (
 
 // BindingsSchemaVersion is the canonical repo-bindings schema version
 // published by this home.
-const BindingsSchemaVersion = 1
+const BindingsSchemaVersion = 2
 
 // QualitySchemaVersion is the config-seam schema version this verifier proves.
 const QualitySchemaVersion = 4
@@ -62,19 +62,28 @@ type CallerBinding struct {
 	SHA256 string
 }
 
-// FileBinding binds one canonical file topic to its path and content hash.
+// FileBinding binds one byte-identical canonical file topic to its path and
+// content hash.
 type FileBinding struct {
 	Path   string
 	SHA256 string
 }
 
-// FileBindings carries the canonical file topics. The gitignore topic is
-// verified in prefix mode (canonical core plus marked project block); every
-// other topic is byte-identical.
+// GitignoreBinding binds the gitignore topic to its path, the ordered
+// fragment list, and the hash of the rendered governed region.
+type GitignoreBinding struct {
+	Path      string
+	Fragments []string
+	SHA256    string
+}
+
+// FileBindings carries the canonical file topics. The byte-identical topics
+// compare by hash; the gitignore topic composes at bind time from the bound
+// fragment list and proves the rendered governed region byte-exact.
 type FileBindings struct {
 	Lefthook      FileBinding
 	Gitattributes FileBinding
-	Gitignore     FileBinding
+	Gitignore     GitignoreBinding
 	Dependabot    FileBinding
 }
 
@@ -156,11 +165,17 @@ type fileJSON struct {
 	SHA256 string `json:"sha256"`
 }
 
+type gitignoreJSON struct {
+	Path      string   `json:"path"`
+	Fragments []string `json:"fragments"`
+	SHA256    string   `json:"sha256"`
+}
+
 type filesJSON struct {
-	Lefthook      fileJSON `json:"lefthook"`
-	Gitattributes fileJSON `json:"gitattributes"`
-	Gitignore     fileJSON `json:"gitignore"`
-	Dependabot    fileJSON `json:"dependabot"`
+	Lefthook      fileJSON      `json:"lefthook"`
+	Gitattributes fileJSON      `json:"gitattributes"`
+	Gitignore     gitignoreJSON `json:"gitignore"`
+	Dependabot    fileJSON      `json:"dependabot"`
 }
 
 type codeownersJSON struct {
@@ -263,7 +278,7 @@ func validateDocument(document bindingsDocument) (Bindings, error) {
 		Files: FileBindings{
 			Lefthook:      FileBinding(document.Files.Lefthook),
 			Gitattributes: FileBinding(document.Files.Gitattributes),
-			Gitignore:     FileBinding(document.Files.Gitignore),
+			Gitignore:     GitignoreBinding(document.Files.Gitignore),
 			Dependabot:    FileBinding(document.Files.Dependabot),
 		},
 		Codeowners: CodeownersBinding{
@@ -341,7 +356,6 @@ func validateFiles(files filesJSON) error {
 	}{
 		{name: "lefthook", binding: files.Lefthook},
 		{name: "gitattributes", binding: files.Gitattributes},
-		{name: "gitignore", binding: files.Gitignore},
 		{name: "dependabot", binding: files.Dependabot},
 	} {
 		if err := validateManifestPath("files."+topic.name+".path", topic.binding.Path); err != nil {
@@ -350,6 +364,15 @@ func validateFiles(files filesJSON) error {
 		if !hashPattern.MatchString(topic.binding.SHA256) {
 			return fmt.Errorf("files.%s.sha256 must be a lowercase SHA-256 hex digest", topic.name)
 		}
+	}
+	if err := validateManifestPath("files.gitignore.path", files.Gitignore.Path); err != nil {
+		return err
+	}
+	if err := ValidateGitignoreFragments(files.Gitignore.Fragments); err != nil {
+		return fmt.Errorf("files.gitignore.fragments %s", err)
+	}
+	if !hashPattern.MatchString(files.Gitignore.SHA256) {
+		return errors.New("files.gitignore.sha256 must be a lowercase SHA-256 hex digest")
 	}
 	return nil
 }

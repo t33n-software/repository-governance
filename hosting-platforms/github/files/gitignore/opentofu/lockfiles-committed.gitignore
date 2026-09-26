@@ -1,0 +1,3 @@
+# Lockfile policy: committed. OpenTofu lock files (**/.terraform.lock.hcl) are
+# committed to the repository; this fragment binds that policy and therefore
+# carries no ignore pattern for them.

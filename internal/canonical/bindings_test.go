@@ -8,7 +8,7 @@ import (
 // validBindingsJSON is the reference manifest every mutation starts from.
 func validBindingsJSON() string {
 	return `{
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "home": {
     "repository": "t33n-software/repository-governance",
     "version": "v1.0.0",
@@ -29,7 +29,7 @@ func validBindingsJSON() string {
   "files": {
     "lefthook": { "path": "lefthook.yml", "sha256": "` + strings.Repeat("a", 64) + `" },
     "gitattributes": { "path": ".gitattributes", "sha256": "` + strings.Repeat("b", 64) + `" },
-    "gitignore": { "path": ".gitignore", "sha256": "` + strings.Repeat("c", 64) + `" },
+    "gitignore": { "path": ".gitignore", "fragments": ["core", "go/core"], "sha256": "` + strings.Repeat("c", 64) + `" },
     "dependabot": { "path": ".github/dependabot.yml", "sha256": "` + strings.Repeat("d", 64) + `" }
   },
   "codeowners": { "path": ".github/CODEOWNERS", "defaultOwner": "@CyberT33N" },
@@ -43,7 +43,7 @@ func TestDecodeBindingsAcceptsTheReferenceManifest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DecodeBindings: %v", err)
 	}
-	if bindings.SchemaVersion != 1 {
+	if bindings.SchemaVersion != 2 {
 		t.Fatalf("SchemaVersion = %d", bindings.SchemaVersion)
 	}
 	if bindings.Home.Repository != "t33n-software/repository-governance" {
@@ -60,6 +60,9 @@ func TestDecodeBindingsAcceptsTheReferenceManifest(t *testing.T) {
 	}
 	if bindings.Files.Lefthook.Path != "lefthook.yml" {
 		t.Fatalf("Files.Lefthook = %+v", bindings.Files.Lefthook)
+	}
+	if strings.Join(bindings.Files.Gitignore.Fragments, ",") != "core,go/core" {
+		t.Fatalf("Files.Gitignore = %+v", bindings.Files.Gitignore)
 	}
 	if bindings.Codeowners.DefaultOwner != "@CyberT33N" {
 		t.Fatalf("Codeowners = %+v", bindings.Codeowners)
@@ -166,13 +169,13 @@ func TestDecodeBindingsRejections(t *testing.T) {
 	}{
 		{
 			name:    "wrong schema version",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"schemaVersion": 1`, `"schemaVersion": 2`, 1) },
-			message: "schemaVersion must equal 1",
+			mutate:  func(doc string) string { return strings.Replace(doc, `"schemaVersion": 2`, `"schemaVersion": 1`, 1) },
+			message: "schemaVersion must equal 2",
 		},
 		{
 			name: "unknown field",
 			mutate: func(doc string) string {
-				return strings.Replace(doc, `"schemaVersion": 1,`, `"schemaVersion": 1, "bogus": true,`, 1)
+				return strings.Replace(doc, `"schemaVersion": 2,`, `"schemaVersion": 2, "bogus": true,`, 1)
 			},
 			message: "known fields",
 		},
@@ -269,6 +272,48 @@ func TestDecodeBindingsRejections(t *testing.T) {
 				return strings.Replace(doc, `"sha256": "`+strings.Repeat("a", 64)+`"`, `"sha256": "aa"`, 1)
 			},
 			message: "files.lefthook.sha256",
+		},
+		{
+			name: "missing gitignore fragments",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"fragments": ["core", "go/core"], `, ``, 1)
+			},
+			message: "files.gitignore.fragments must contain at least the core fragment",
+		},
+		{
+			name: "gitignore core not first",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"fragments": ["core", "go/core"]`, `"fragments": ["go/core", "core"]`, 1)
+			},
+			message: "files.gitignore.fragments must begin with the core fragment",
+		},
+		{
+			name: "invalid gitignore fragment",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"fragments": ["core", "go/core"]`, `"fragments": ["core", "../evil"]`, 1)
+			},
+			message: "files.gitignore.fragments must be a canonical fragment name",
+		},
+		{
+			name: "duplicate gitignore fragment",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"fragments": ["core", "go/core"]`, `"fragments": ["core", "core"]`, 1)
+			},
+			message: "files.gitignore.fragments must not repeat a fragment",
+		},
+		{
+			name: "bad gitignore path",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"gitignore": { "path": ".gitignore"`, `"gitignore": { "path": "../.gitignore"`, 1)
+			},
+			message: "files.gitignore.path",
+		},
+		{
+			name: "bad gitignore hash",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"sha256": "`+strings.Repeat("c", 64)+`"`, `"sha256": "cc"`, 1)
+			},
+			message: "files.gitignore.sha256",
 		},
 		{
 			name: "empty codeowners owner",

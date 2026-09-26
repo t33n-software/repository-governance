@@ -17,7 +17,7 @@ func testNilContext() context.Context {
 }
 
 func TestVerifyPass(t *testing.T) {
-	fixture := passingFilesFixture()
+	fixture := passingFilesFixture(t)
 	callerFixture := passingCallerFixture()
 	for path, contents := range callerFixture.tenantContents {
 		fixture.tenantContents[path] = contents
@@ -52,7 +52,7 @@ func TestVerifyPass(t *testing.T) {
 	verifier.TenantRoot = "tenant"
 
 	bindings := passingCallerBinding()
-	bindings.Files = canonicalFileBindings()
+	bindings.Files = canonicalFileBindings(t)
 	bindings.Codeowners = CodeownersBinding{Path: ".github/CODEOWNERS", DefaultOwner: "@CyberT33N"}
 	bindings.Quality = QualityBinding{Config: "git-governance.quality.json", SchemaVersion: 4}
 	bindings.Tools = ToolsBinding{Module: "tools/go.mod", CatalogVersion: 1}
@@ -77,7 +77,7 @@ func TestVerifyCollectsFailures(t *testing.T) {
 	}
 	bindings := Bindings{
 		Callers:    []CallerBinding{{File: ".github/workflows/ci.yml", Master: "m", SHA256: strings.Repeat("a", 64)}},
-		Files:      canonicalFileBindings(),
+		Files:      canonicalFileBindings(t),
 		Codeowners: CodeownersBinding{Path: ".github/CODEOWNERS", DefaultOwner: "@x"},
 		Quality:    QualityBinding{Config: "git-governance.quality.json", SchemaVersion: 4},
 		Tools:      ToolsBinding{Module: "tools/go.mod", CatalogVersion: 1},
