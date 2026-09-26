@@ -6,7 +6,7 @@ toolchain go1.26.6
 
 require (
 	github.com/go-git/go-git/v5 v5.19.2
-	go.yaml.in/yaml/v3 v3.0.4
+	go.yaml.in/yaml/v3 v3.0.5
 )
 
 require (
