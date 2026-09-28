@@ -558,6 +558,13 @@ func TestCanonicalFileFamily(t *testing.T) {
 			t.Fatalf("the dependabot variant must carry %q", ecosystem)
 		}
 	}
+
+	dependabotNode := readArtifact(t, "hosting-platforms/github/files/dependabot/dependabot-node.yml")
+	for _, ecosystem := range []string{"package-ecosystem: npm", "package-ecosystem: github-actions", "target-branch: develop"} {
+		if !strings.Contains(dependabotNode, ecosystem) {
+			t.Fatalf("the dependabot node variant must carry %q", ecosystem)
+		}
+	}
 }
 
 // gitignoreGoldenSets binds every registered fragment set to its golden
@@ -565,6 +572,7 @@ func TestCanonicalFileFamily(t *testing.T) {
 var gitignoreGoldenSets = map[string][]string{
 	"core":                              {"core"},
 	"core-go":                           {"core", "go/core"},
+	"core-node":                         {"core", "node/core"},
 	"core-opentofu":                     {"core", "opentofu/core"},
 	"core-opentofu-lockfiles-committed": {"core", "opentofu/core", "opentofu/lockfiles-committed"},
 }
@@ -585,7 +593,7 @@ func readHomeArtifact(t *testing.T) func(string) ([]byte, error) {
 // is gone, no fragment carries the project-block mark, and the org core
 // carries the canonical secret-artifact families.
 func TestGitignoreFragmentTree(t *testing.T) {
-	fragments := []string{"core.gitignore", "go/core.gitignore", "opentofu/core.gitignore", "opentofu/lockfiles-committed.gitignore"}
+	fragments := []string{"core.gitignore", "go/core.gitignore", "node/core.gitignore", "opentofu/core.gitignore", "opentofu/lockfiles-committed.gitignore"}
 	for _, fragment := range fragments {
 		content := readArtifact(t, "hosting-platforms/github/files/gitignore/"+fragment)
 		if strings.Contains(content, "# -- project additions below this line --") {
@@ -636,7 +644,7 @@ func TestGitignoreGoldenRenders(t *testing.T) {
 // lockfile policy fragment carries no pattern.
 func TestGitignoreCompositionInvariants(t *testing.T) {
 	seen := make(map[string]string)
-	for _, fragment := range []string{"core.gitignore", "go/core.gitignore", "opentofu/core.gitignore", "opentofu/lockfiles-committed.gitignore"} {
+	for _, fragment := range []string{"core.gitignore", "go/core.gitignore", "node/core.gitignore", "opentofu/core.gitignore", "opentofu/lockfiles-committed.gitignore"} {
 		for _, line := range strings.Split(readArtifact(t, "hosting-platforms/github/files/gitignore/"+fragment), "\n") {
 			trimmed := strings.TrimSpace(line)
 			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
