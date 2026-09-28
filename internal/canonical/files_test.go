@@ -254,6 +254,7 @@ func TestVerifierHomePathsExistInTheHomeLayout(t *testing.T) {
 	fragmentPaths := []string{
 		"core.gitignore",
 		"go/core.gitignore",
+		"node/core.gitignore",
 		"opentofu/core.gitignore",
 		"opentofu/lockfiles-committed.gitignore",
 	}

@@ -1,0 +1,6 @@
+# Node.js/TypeScript toolchain artifacts.
+node_modules/
+.pnpm/
+.tsbuild/
+*.tsbuildinfo
+logs/
