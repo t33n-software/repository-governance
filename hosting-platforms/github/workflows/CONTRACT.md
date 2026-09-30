@@ -13,6 +13,8 @@ canonical callers live at `hosting-platforms/github/workflows/callers/go/`.
 | `.github/workflows/reusable-ci-go.yml` | The canonical Go quality lane | `quality_class` (`linux-only` or `full`) |
 | `.github/workflows/reusable-codeql-go.yml` | The canonical Go CodeQL analysis lane | none |
 | `.github/workflows/reusable-dependency-review.yml` | The dependency admission review | none |
+| `.github/workflows/reusable-release-config.yml` | The release configuration check (GoReleaser) | none |
+| `.github/workflows/reusable-canonical-conformance.yml` | The canonical conformance proof (the verify-canonical orchestration through the home's composite action at the canonical pin) | none |
 
 Every payload carries exclusively `on: workflow_call` and never triggers
 itself. Every action reference inside a payload is a full-length commit SHA
@@ -21,15 +23,22 @@ by a fleet pin bump through a reviewed pull request. No payload carries an
 organization name, an endpoint, a credential, workflow-level `GOFLAGS`,
 `cache: true`, or a `pull_request_target` trigger.
 
+A new payload lands before its caller: the caller master and the hash-record
+entry follow with the canonical pin re-issue, because a caller references the
+payload by a full-length home commit SHA and that reference resolves only at a
+revision that already carries the payload.
+
 ## The trigger surface
 
 The callers trigger on push and pull request to `main`, `develop`,
 `release/**`, and `support/**`, plus a schedule and `workflow_dispatch`
-(`dependency-review.yml` is pull-request-native). Trigger completeness is a
-precondition for the first release cut: the shared-line rulesets are
-pre-positioned and bind every future matching ref from its first commit, so a
-missing trigger family would block the first pull request to that line
-fail-closed.
+(`dependency-review.yml` is pull-request-native; `release-config.yml` and
+`canonical-conformance.yml` carry no schedule — the configuration and the
+bindings change only with commits). Trigger
+completeness is a precondition for the first release cut: the shared-line
+rulesets are pre-positioned and bind every future matching ref from its first
+commit, so a missing trigger family would block the first pull request to that
+line fail-closed.
 
 ## The permission model
 
@@ -44,6 +53,8 @@ bound grants:
 | `ci.yml` / `ci-full.yml` | `contents: read` | `contents: read` |
 | `codeql.yml` | `actions: read`, `contents: read`, `security-events: write` | the same three |
 | `dependency-review.yml` | `contents: read` | `contents: read` |
+| `release-config.yml` | `contents: read` | `contents: read` |
+| `canonical-conformance.yml` | `contents: read` | `contents: read` |
 
 ## The check-context model
 
@@ -59,6 +70,8 @@ are contract, because the shared-line rulesets bind the exact strings:
 | `ci-full.yml` | `Quality gates` | the matrix variant | `Quality gates / linux-amd64`, `Quality gates / macos-arm64`, `Quality gates / windows-amd64` |
 | `codeql.yml` | `CodeQL` | `CodeQL (go)` | `CodeQL / CodeQL (go)` |
 | `dependency-review.yml` | `Dependency review` | `Dependency admission review` | `Dependency review / Dependency admission review` |
+| `release-config.yml` | `Release configuration` | `GoReleaser configuration check` | `Release configuration / GoReleaser configuration check` |
+| `canonical-conformance.yml` | `Canonical conformance` | `Canonical bindings verification` | `Canonical conformance / Canonical bindings verification` |
 
 The CodeQL merge gate consumes the SARIF result through the `code_scanning`
 ruleset rule (tool-bound, not context-bound); the status-check contexts of the
@@ -69,14 +82,23 @@ line — the activation order is validated sequencing, never assumption.
 ## The binding seams
 
 - **Toolchain version.** The payloads and the controlled-Go setup action
-  provision the pinned toolchain from the tenant's `go.mod` — the Go-native
-  selector that `actions/setup-go` reads through `go-version-file: go.mod`
-  (the `toolchain` directive, with the `go` directive as the platform
-  fallback). The configuration seam's `toolchain.goVersion` remains the
-  assertion authority: the quality gate cross-checks the running toolchain
-  against it fail-closed, and the conformance verifier proves the tenant's
-  `go.mod` carries the directive. The toolchain identity is tenant data at
-  its native place — never a workflow edit, never a JSON extraction shim.
+  provision exactly the toolchain pinned by the `toolchain` directive of the
+  tenant's `go.mod`: a fail-closed resolution step extracts the pinned
+  version (a missing, ambiguous, or malformed directive is an error — the
+  seam requires the exact three-part form `goX.Y.Z`, with no fallback to the
+  `go` directive and never a resolution to the latest patch) and
+  `actions/setup-go` installs exactly that version through `go-version`. The
+  configuration seam's `toolchain.version` remains the assertion authority:
+  the quality gate cross-checks the running toolchain against it fail-closed,
+  and the conformance verifier proves the tenant's `go.mod` carries the
+  directive. The toolchain identity is tenant data at its native place —
+  never a workflow edit, never a JSON extraction shim.
+- **Full history.** The CI payload checks out the full history and every
+  branch (`fetch-depth: 0`): governed suites may carry provenance guards —
+  such as the pin-ancestry proof against the merged lines — that fail-closed
+  require the merged refs and their history. A shallow single-ref checkout
+  blinds exactly these guards; the lane provides the full substrate so the
+  guards prove with evidence instead of failing on a missing reference.
 - **Quality gate.** The CI payload runs `go tool -modfile tools/go.mod
   quality-gate`; the tool pin resolves through the tenant's tooling module
   (class-D consumption).

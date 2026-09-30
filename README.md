@@ -2,10 +2,13 @@
 
 `repository-governance` is the canonical home of the repository surface of
 the fleet. It owns everything a repository **carries**: the reusable workflow
-payloads (`reusable-ci-go`, `reusable-codeql-go`, `reusable-dependency-review`),
-the composite actions (`setup-controlled-go`, `verify-canonical-files`), the
+payloads (`reusable-ci-go`, `reusable-codeql-go`, `reusable-dependency-review`,
+`reusable-release-config`, `reusable-canonical-conformance`), the composite
+actions (`setup-controlled-go`,
+`verify-canonical-files`), the
 canonical file family (`.gitattributes`, `.gitignore`, `lefthook.yml`,
-`dependabot.yml`, `CODEOWNERS`), the hash-pinned caller contracts, and the
+`dependabot.yml`, `CODEOWNERS`, and the rule-sets conventions README render
+theme), the hash-pinned caller contracts, and the
 conformance verifier (`cmd/verify-canonical`) — the proof of carrying.
 
 ## Artifacts
@@ -17,6 +20,7 @@ conformance verifier (`cmd/verify-canonical`) — the proof of carrying.
 | Canonical callers | `hosting-platforms/github/workflows/callers/go/` | The thin, hash-pinned tenant adoption shape |
 | Canonical files | `hosting-platforms/github/files/` | The class-C content family (byte-identical or rendered) |
 | Conformance verifier | `cmd/verify-canonical/` | The fail-closed proof-of-carrying engine |
+| Provisioning CLI | `cmd/provision-canonical/` | The write exposure of the render core — provisions a tenant's canonical surfaces from the binding manifest |
 | Verifier schemas | `schemas/{repo-bindings,caller-hashes}/v1/` | The versioned binding-manifest and hash-record contracts |
 | Conformance vectors | `conformance/{positive,negative}/` | The proof set for the binding-manifest decoder |
 
@@ -26,7 +30,10 @@ A tenant adopts the surface by carrying the thin, byte-identical callers that
 reference the payloads by full-length commit SHA, the canonical files, the
 tool pins (`tools/go.mod`), the schema-validated configuration seam
 (`git-governance.quality.json`), and the binding manifest
-(`repo-bindings.json`) — never copied logic. The "Canonical conformance"
+(`repo-bindings.json`) — never copied logic. The provisioning CLI
+(`cmd/provision-canonical`) renders and writes those canonical surfaces from
+the binding manifest; the selection stays reviewable, versioned manifest
+data, and the CLI carries no selection flags. The "Canonical conformance"
 check proves the bindings fail-closed on every pull request.
 
 ## Verification

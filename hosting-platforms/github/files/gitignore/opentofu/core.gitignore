@@ -1,0 +1,20 @@
+# OpenTofu engine-local surfaces.
+**/.terraform/
+.terraformrc
+terraform.rc
+crash.log
+crash.*.log
+
+# Infrastructure state (secret-shaped; additionally blocked at the server-side
+# boundary).
+*.tfstate
+*.tfstate.*
+*.tfplan
+
+# Instance bindings (the values are governed elsewhere).
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

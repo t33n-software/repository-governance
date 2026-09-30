@@ -1,8 +1,10 @@
 // Command verify-canonical is the conformance verifier of the
 // repository-governance home. It proves a tenant's canonical bindings
 // fail-closed: caller hashes and pins, canonical file equality, CODEOWNERS
-// materialization, config-seam conformance, tool-pin admission, and
-// license-lane wiring.
+// and conventions README materialization, config-seam conformance,
+// capability-pack resolution
+// against the registry at the tenant's pinned tool stand, tool-pin admission,
+// and the license content proof through the tenant-pinned hub CLI.
 package main
 
 import (
@@ -24,12 +26,12 @@ const bindingsFileName = "repo-bindings.json"
 var version = "dev"
 
 var (
-	exitProcess  = os.Exit
-	commandArgs  = os.Args
-	readFile     = os.ReadFile
-	verify       = verifyTenant
-	resolveHome  = canonical.ResolveModuleDir
-	newVerifier  = canonical.NewVerifier
+	exitProcess = os.Exit
+	commandArgs = os.Args
+	readFile    = os.ReadFile
+	verify      = verifyTenant
+	resolveHome = canonical.ResolveModuleDir
+	newVerifier = canonical.NewVerifier
 )
 
 func main() {
@@ -39,11 +41,23 @@ func main() {
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	root := "."
 	home := ""
-	for _, arg := range args {
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
 		switch {
 		case arg == "--version":
 			fmt.Fprintf(stdout, "verify-canonical %s\n", version)
 			return 0
+		case arg == "--repo" || arg == "--home":
+			value, ok := flagValue(args, &index)
+			if !ok {
+				fmt.Fprintf(stderr, "usage: verify-canonical [--repo <path>] [--home <path>] [--version]\n")
+				return 2
+			}
+			if arg == "--repo" {
+				root = value
+			} else {
+				home = value
+			}
 		case strings.HasPrefix(arg, "--repo="):
 			root = strings.TrimPrefix(arg, "--repo=")
 		case strings.HasPrefix(arg, "--home="):
@@ -71,6 +85,16 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// flagValue consumes the value of a space-separated flag form, advancing the
+// argument index; a flag without a following value is a usage error.
+func flagValue(args []string, index *int) (string, bool) {
+	if *index+1 >= len(args) {
+		return "", false
+	}
+	*index = *index + 1
+	return args[*index], true
 }
 
 // decodeTenantBindings reads and strictly decodes the tenant's binding

@@ -12,9 +12,10 @@ import (
 var toolchainDirectivePattern = regexp.MustCompile(`^toolchain go[0-9]+\.[0-9]+(\.[0-9]+)?$`)
 
 // ToolchainDirective extracts the toolchain directive of a go.mod declaration
-// — the Go-native selector the home's payloads and composite actions provision
-// through setup-go's go-version-file mechanism. The directive must exist and
-// be well-formed; a missing or malformed directive is a fail-closed error.
+// — the Go-native selector the home's payloads and composite actions resolve
+// fail-closed and install exactly through setup-go's go-version input. The
+// directive must exist and be well-formed; a missing or malformed directive
+// is a fail-closed error.
 func ToolchainDirective(contents []byte) (string, error) {
 	if len(contents) == 0 {
 		return "", errors.New("the go.mod declaration must not be empty")
@@ -41,9 +42,9 @@ func ToolchainDirective(contents []byte) (string, error) {
 
 // verifyToolchain proves the tenant's Go module declaration carries an
 // explicit, well-formed toolchain directive — the Go-native selector the
-// payloads provision through setup-go's go-version-file mechanism. The
-// version cross-check against the configuration seam's toolchain.goVersion is
-// owned by the quality gate at runtime.
+// payloads resolve fail-closed and install exactly. The version cross-check
+// against the configuration seam's toolchain version is owned by the quality
+// gate at runtime.
 func (v Verifier) verifyToolchain() []Finding {
 	check := "toolchain directive"
 	contents, err := v.ReadTenant("go.mod")

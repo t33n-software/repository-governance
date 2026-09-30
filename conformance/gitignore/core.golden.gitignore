@@ -1,0 +1,29 @@
+# canonical: gitignore core @ 0123456789abcdef0123456789abcdef01234567 — governed region, do not edit
+# Local build and test outputs.
+/.build/
+/dist/
+/coverage/
+/.cache/
+
+# Universal toolchain output suffix.
+*.out
+
+# Never-commit secret-artifact guard (the client-side projection of the
+# server-side push boundary).
+.env
+.env.*
+.envrc
+.env*.local
+credentials
+credentials.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.kdbx
+*.ppk
+*.gpg
+
+# -- project additions below this line --

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,10 +31,26 @@ func NewVerifier(tenantRoot, homeRoot string, stdout, stderr io.Writer) Verifier
 		ReadModule: func(dir, path string) ([]byte, error) {
 			return os.ReadFile(filepath.Join(dir, filepath.FromSlash(path)))
 		},
+		ListTenant: func(path string) ([]fs.DirEntry, error) {
+			return listEntries(filepath.Join(tenantRoot, filepath.FromSlash(path)))
+		},
+		ListModule: func(dir, path string) ([]fs.DirEntry, error) {
+			return listEntries(filepath.Join(dir, filepath.FromSlash(path)))
+		},
 		ResolveModule: ResolveModuleDir,
-		Stdout:        stdout,
-		Stderr:        stderr,
+		RunTool: func(ctx context.Context, dir string, args ...string) (string, error) {
+			output, err := commandOutput(ctx, dir, "go", args...)
+			return string(output), err
+		},
+		Stdout: stdout,
+		Stderr: stderr,
 	}
+}
+
+// listEntries returns the directory entries of a directory, files and
+// subdirectories alike; the consumers decide which entries are meaningful.
+func listEntries(dir string) ([]fs.DirEntry, error) {
+	return os.ReadDir(dir)
 }
 
 // commandOutput is the production process execution of the module resolution.
@@ -47,10 +64,20 @@ func commandOutput(ctx context.Context, dir, name string, args ...string) ([]byt
 var execOutput = commandOutput
 
 // ResolveModuleDir resolves a module's cache directory within a tooling
-// module directory through the Go toolchain.
+// module directory through the Go toolchain. The resolution never trusts a
+// warm module cache: it downloads the module through the integrity-pinned
+// channel of the tooling module (go.sum) before querying its directory, so
+// the verifier runs identically in cold-cache environments such as CI lanes.
+// Convention: docs/conventions/verification/self-sufficient-module-resolution.md
 func ResolveModuleDir(ctx context.Context, dir, module string) (string, error) {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	// The download must precede the directory query: go list -m reports an
+	// empty Dir for a required module that is not yet present in the module
+	// cache, which is the default state of a fresh CI lane.
+	if output, err := execOutput(ctx, dir, "go", "mod", "download", module); err != nil {
+		return "", fmt.Errorf("go mod download %s: %w (%s)", module, err, strings.TrimSpace(string(output)))
 	}
 	output, err := execOutput(ctx, dir, "go", "list", "-m", "-f", "{{.Dir}}", module)
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 )
 
 // Finding is one failed conformance proof.
@@ -24,9 +25,18 @@ type Verifier struct {
 	ReadHome func(path string) ([]byte, error)
 	// ReadModule reads a file inside a resolved module directory.
 	ReadModule func(dir, path string) ([]byte, error)
+	// ListTenant lists the directory entries of a tenant directory by its
+	// repository-relative slash path.
+	ListTenant func(path string) ([]fs.DirEntry, error)
+	// ListModule lists the directory entries of a directory inside a resolved
+	// module directory.
+	ListModule func(dir, path string) ([]fs.DirEntry, error)
 	// ResolveModule resolves a module's cache directory within the tenant's
 	// tooling module context.
 	ResolveModule func(ctx context.Context, dir, module string) (string, error)
+	// RunTool executes the Go toolchain for a tenant-pinned tool invocation
+	// within the tenant root and returns the combined output.
+	RunTool func(ctx context.Context, dir string, args ...string) (string, error)
 	// Stdout receives the per-check report; Stderr receives the findings.
 	Stdout io.Writer
 	Stderr io.Writer
@@ -43,10 +53,12 @@ func (v Verifier) Verify(ctx context.Context, bindings Bindings) []Finding {
 	findings = append(findings, v.verifyCallers(bindings)...)
 	findings = append(findings, v.verifyFiles(bindings)...)
 	findings = append(findings, v.verifyCodeowners(bindings)...)
+	findings = append(findings, v.verifyConventions(bindings)...)
 	findings = append(findings, v.verifyQuality(bindings)...)
+	findings = append(findings, v.verifyExtends(ctx, bindings)...)
 	findings = append(findings, v.verifyToolchain()...)
 	findings = append(findings, v.verifyTools(ctx, bindings)...)
-	findings = append(findings, v.verifyLicense(bindings)...)
+	findings = append(findings, v.verifyLicense(ctx, bindings)...)
 	return findings
 }
 

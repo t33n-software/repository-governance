@@ -17,7 +17,7 @@ func testNilContext() context.Context {
 }
 
 func TestVerifyPass(t *testing.T) {
-	fixture := passingFilesFixture()
+	fixture := passingFilesFixture(t)
 	callerFixture := passingCallerFixture()
 	for path, contents := range callerFixture.tenantContents {
 		fixture.tenantContents[path] = contents
@@ -26,7 +26,7 @@ func TestVerifyPass(t *testing.T) {
 		fixture.homeContents[path] = contents
 	}
 	fixture.homeContents[callerHashesPath] = callerFixture.recordContents
-	fixture.tenantContents["git-governance.quality.json"] = []byte(`{"schemaVersion":3,"toolchain":{"goVersion":"1.26.6"},"gates":[{"name":"a","command":"go"}]}`)
+	fixture.tenantContents["git-governance.quality.json"] = []byte(`{"schemaVersion":4,"toolchain":{"language":"go","version":"1.26.6"},"gates":[{"name":"a","command":"go"}]}`)
 	fixture.tenantContents["go.mod"] = []byte("module example.com/tenant\n\ngo 1.26\n\ntoolchain go1.26.6\n")
 
 	verifier := fixture.verifier()
@@ -52,9 +52,9 @@ func TestVerifyPass(t *testing.T) {
 	verifier.TenantRoot = "tenant"
 
 	bindings := passingCallerBinding()
-	bindings.Files = canonicalFileBindings()
+	bindings.Files = canonicalFileBindings(t)
 	bindings.Codeowners = CodeownersBinding{Path: ".github/CODEOWNERS", DefaultOwner: "@CyberT33N"}
-	bindings.Quality = QualityBinding{Config: "git-governance.quality.json", SchemaVersion: 3}
+	bindings.Quality = QualityBinding{Config: "git-governance.quality.json", SchemaVersion: 4}
 	bindings.Tools = ToolsBinding{Module: "tools/go.mod", CatalogVersion: 1}
 	fixture.tenantContents["tools/go.mod"] = []byte("module example.com/tenant/tools\n")
 
@@ -77,9 +77,9 @@ func TestVerifyCollectsFailures(t *testing.T) {
 	}
 	bindings := Bindings{
 		Callers:    []CallerBinding{{File: ".github/workflows/ci.yml", Master: "m", SHA256: strings.Repeat("a", 64)}},
-		Files:      canonicalFileBindings(),
+		Files:      canonicalFileBindings(t),
 		Codeowners: CodeownersBinding{Path: ".github/CODEOWNERS", DefaultOwner: "@x"},
-		Quality:    QualityBinding{Config: "git-governance.quality.json", SchemaVersion: 3},
+		Quality:    QualityBinding{Config: "git-governance.quality.json", SchemaVersion: 4},
 		Tools:      ToolsBinding{Module: "tools/go.mod", CatalogVersion: 1},
 		Class:      Class{LicenseHub: true},
 	}

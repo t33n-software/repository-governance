@@ -6,38 +6,39 @@ import (
 )
 
 // codeownersTemplatePath is the home-relative path of the ownership template.
-const codeownersTemplatePath = "files/codeowners/CODEOWNERS.tmpl"
+const codeownersTemplatePath = "hosting-platforms/github/files/codeowners/CODEOWNERS.tmpl"
 
 // codeownersToken is the render token the template carries for the default
 // owner value.
 const codeownersToken = "{{defaultOwner}}"
 
-// fileTopics maps each canonical file topic to its home-relative master path.
+// fileTopics maps each byte-identical canonical file topic to its
+// home-relative master path.
 var fileTopics = []struct {
-	topic     string
-	homePath  string
-	binding   func(FileBindings) FileBinding
-	prefixMode bool
+	topic    string
+	homePath string
+	binding  func(FileBindings) FileBinding
 }{
-	{topic: "lefthook", homePath: "files/lefthook/lefthook.yml", binding: func(f FileBindings) FileBinding { return f.Lefthook }},
-	{topic: "gitattributes", homePath: "files/gitattributes/.gitattributes", binding: func(f FileBindings) FileBinding { return f.Gitattributes }},
-	{topic: "gitignore", homePath: "files/gitignore/.gitignore", binding: func(f FileBindings) FileBinding { return f.Gitignore }, prefixMode: true},
-	{topic: "dependabot", homePath: "files/dependabot/dependabot-go.yml", binding: func(f FileBindings) FileBinding { return f.Dependabot }},
+	{topic: "lefthook", homePath: "hosting-platforms/github/files/lefthook/lefthook.yml", binding: func(f FileBindings) FileBinding { return f.Lefthook }},
+	{topic: "gitattributes", homePath: "hosting-platforms/github/files/gitattributes/.gitattributes", binding: func(f FileBindings) FileBinding { return f.Gitattributes }},
+	{topic: "dependabot", homePath: "hosting-platforms/github/files/dependabot/dependabot-go.yml", binding: func(f FileBindings) FileBinding { return f.Dependabot }},
 }
 
 // verifyFiles proves the canonical file family: byte-identical topics compare
 // by hash against both the home master and the declared hash; the gitignore
-// topic proves the canonical core as a verbatim prefix of the tenant file.
+// topic re-renders the bound fragment list and proves the governed region of
+// the tenant file byte-exact.
 func (v Verifier) verifyFiles(bindings Bindings) []Finding {
 	findings := make([]Finding, 0)
 	for _, topic := range fileTopics {
-		findings = append(findings, v.verifyFileTopic(bindings.Files, topic.topic, topic.homePath, topic.binding, topic.prefixMode)...)
+		findings = append(findings, v.verifyFileTopic(bindings.Files, topic.topic, topic.homePath, topic.binding)...)
 	}
+	findings = append(findings, v.verifyGitignore(bindings)...)
 	return findings
 }
 
-// verifyFileTopic runs the proofs of one canonical file topic.
-func (v Verifier) verifyFileTopic(files FileBindings, topic, homePath string, binding func(FileBindings) FileBinding, prefixMode bool) []Finding {
+// verifyFileTopic runs the proofs of one byte-identical canonical file topic.
+func (v Verifier) verifyFileTopic(files FileBindings, topic, homePath string, binding func(FileBindings) FileBinding) []Finding {
 	check := "file " + topic
 	declared := binding(files)
 
@@ -54,16 +55,46 @@ func (v Verifier) verifyFileTopic(files FileBindings, topic, homePath string, bi
 	if err != nil {
 		return []Finding{readErrorFinding(check, declared.Path, err)}
 	}
-	if prefixMode {
-		if !strings.HasPrefix(string(tenantContents), string(homeContents)) {
-			return []Finding{mismatchFinding(check,
-				fmt.Sprintf("the tenant %s does not carry the canonical core as a verbatim prefix", declared.Path))}
-		}
-		return nil
-	}
 	if hash := Sum256Hex(tenantContents); hash != declared.SHA256 {
 		return []Finding{mismatchFinding(check,
 			fmt.Sprintf("the tenant %s hash %s diverges from the bound hash %s", declared.Path, hash, declared.SHA256))}
+	}
+	return nil
+}
+
+// verifyGitignore proves the gitignore topic: the bound fragment list renders
+// fail-closed from the pinned home tree, the rendered governed region matches
+// the bound hash, the tenant file carries the region as a verbatim prefix
+// with the free project block below the mark, and — where the license-hub
+// class is bound — the composed tenant file never ignores the protected
+// license family.
+func (v Verifier) verifyGitignore(bindings Bindings) []Finding {
+	check := "file gitignore"
+	declared := bindings.Files.Gitignore
+
+	rendered, err := RenderGitignoreGovernedRegion(v.ReadHome, declared.Fragments, bindings.Home.SHA)
+	if err != nil {
+		return []Finding{mismatchFinding(check, fmt.Sprintf("the bound fragments do not render: %v", err))}
+	}
+	if hash := Sum256Hex(rendered); hash != declared.SHA256 {
+		return []Finding{mismatchFinding(check,
+			fmt.Sprintf("the rendered governed region hash %s diverges from the bound hash %s", hash, declared.SHA256))}
+	}
+
+	tenantContents, err := v.ReadTenant(declared.Path)
+	if err != nil {
+		return []Finding{readErrorFinding(check, declared.Path, err)}
+	}
+	if !strings.HasPrefix(string(tenantContents), string(rendered)) {
+		return []Finding{mismatchFinding(check,
+			fmt.Sprintf("the tenant %s does not carry the rendered governed region as a verbatim prefix", declared.Path))}
+	}
+
+	if bindings.Class.LicenseHub {
+		if violations := GitignoreLicenseViolations(tenantContents); len(violations) > 0 {
+			return []Finding{mismatchFinding(check,
+				fmt.Sprintf("the tenant %s ignores the protected license family: %s", declared.Path, strings.Join(violations, ", ")))}
+		}
 	}
 	return nil
 }

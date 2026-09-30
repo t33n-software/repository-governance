@@ -8,19 +8,20 @@ import (
 )
 
 func TestDecodeQualityConfigVersion(t *testing.T) {
-	version, err := DecodeQualityConfigVersion([]byte(`{"schemaVersion":3,"toolchain":{"goVersion":"1.26.6"},"gates":[{"name":"a","command":"go"}]}`))
+	version, err := DecodeQualityConfigVersion([]byte(`{"schemaVersion":4,"toolchain":{"language":"go","version":"1.26.6"},"gates":[{"name":"a","command":"go"}]}`))
 	if err != nil {
 		t.Fatalf("DecodeQualityConfigVersion: %v", err)
 	}
-	if version != 3 {
+	if version != 4 {
 		t.Fatalf("version = %d", version)
 	}
 }
 
 func TestDecodeQualityConfigVersionFullShape(t *testing.T) {
 	full := `{
-  "schemaVersion": 3,
-  "toolchain": { "goVersion": "1.26.6" },
+  "schemaVersion": 4,
+  "toolchain": { "language": "go", "version": "1.26.6" },
+  "extends": ["opentofu@1"],
   "defaults": { "includeFamilies": ["feature"], "excludeFamilies": [] },
   "gates": [
     {
@@ -42,7 +43,7 @@ func TestDecodeQualityConfigVersionFullShape(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DecodeQualityConfigVersion full: %v", err)
 	}
-	if version != 3 {
+	if version != 4 {
 		t.Fatalf("version = %d", version)
 	}
 }
@@ -54,9 +55,10 @@ func TestDecodeQualityConfigVersionRejections(t *testing.T) {
 	}{
 		{name: "empty", doc: ``},
 		{name: "not json", doc: `not json`},
-		{name: "unknown field", doc: `{"schemaVersion":3,"bogus":true}`},
-		{name: "trailing document", doc: `{"schemaVersion":3} {}`},
-		{name: "type mismatch", doc: `{"schemaVersion":"3"}`},
+		{name: "unknown field", doc: `{"schemaVersion":4,"bogus":true}`},
+		{name: "trailing document", doc: `{"schemaVersion":4} {}`},
+		{name: "type mismatch", doc: `{"schemaVersion":"4"}`},
+		{name: "v3 wire form", doc: `{"schemaVersion":4,"toolchain":{"goVersion":"1.26.6"},"gates":[{"name":"a","command":"go"}]}`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -67,13 +69,39 @@ func TestDecodeQualityConfigVersionRejections(t *testing.T) {
 	}
 }
 
+func TestDecodeQualityConfigExtends(t *testing.T) {
+	extends, err := DecodeQualityConfigExtends([]byte(`{"schemaVersion":4,"toolchain":{"language":"go","version":"1.26.6"},"extends":["opentofu@1"],"gates":[{"name":"a","command":"go"}]}`))
+	if err != nil {
+		t.Fatalf("DecodeQualityConfigExtends: %v", err)
+	}
+	if len(extends) != 1 || extends[0] != "opentofu@1" {
+		t.Fatalf("extends = %v", extends)
+	}
+}
+
+func TestDecodeQualityConfigExtendsWithoutDeclaration(t *testing.T) {
+	extends, err := DecodeQualityConfigExtends([]byte(`{"schemaVersion":4,"gates":[{"name":"a","command":"go"}]}`))
+	if err != nil {
+		t.Fatalf("DecodeQualityConfigExtends: %v", err)
+	}
+	if len(extends) != 0 {
+		t.Fatalf("extends = %v", extends)
+	}
+}
+
+func TestDecodeQualityConfigExtendsRejection(t *testing.T) {
+	if _, err := DecodeQualityConfigExtends([]byte(`not json`)); err == nil {
+		t.Fatal("expected a rejection")
+	}
+}
+
 func TestVerifyQuality(t *testing.T) {
-	bindings := Bindings{Quality: QualityBinding{Config: "git-governance.quality.json", SchemaVersion: 3}}
+	bindings := Bindings{Quality: QualityBinding{Config: "git-governance.quality.json", SchemaVersion: 4}}
 
 	t.Run("pass", func(t *testing.T) {
 		verifier := Verifier{
 			ReadTenant: func(path string) ([]byte, error) {
-				return []byte(`{"schemaVersion":3,"toolchain":{"goVersion":"1.26.6"},"gates":[{"name":"a","command":"go"}]}`), nil
+				return []byte(`{"schemaVersion":4,"toolchain":{"language":"go","version":"1.26.6"},"gates":[{"name":"a","command":"go"}]}`), nil
 			},
 		}
 		if findings := verifier.verifyQuality(bindings); len(findings) != 0 {
@@ -117,7 +145,7 @@ func TestVerifyQualityReadErrorPropagates(t *testing.T) {
 	verifier := Verifier{
 		ReadTenant: func(path string) ([]byte, error) { return nil, boom },
 	}
-	findings := verifier.verifyQuality(Bindings{Quality: QualityBinding{Config: "config.json", SchemaVersion: 3}})
+	findings := verifier.verifyQuality(Bindings{Quality: QualityBinding{Config: "config.json", SchemaVersion: 4}})
 	if len(findings) != 1 || !strings.Contains(findings[0].Detail, "boom") {
 		t.Fatalf("findings = %v", findings)
 	}

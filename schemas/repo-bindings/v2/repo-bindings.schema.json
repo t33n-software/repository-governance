@@ -1,14 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/t33n-software/repository-governance/main/schemas/repo-bindings/v1/schema.json",
+  "$id": "https://raw.githubusercontent.com/t33n-software/repository-governance/main/schemas/repo-bindings/v2/repo-bindings.schema.json",
   "title": "Repository Bindings Manifest",
-  "description": "The canonical tenant binding manifest (repo-bindings.json). It records the home pin, the fleet classes, the bound callers with their hashes, the canonical file bindings, the CODEOWNERS render values, the config-seam pin, and the tooling-module pin. The schema is owned by the repository-governance home, strictly decoded, and proven by conformance vectors.",
+  "description": "The canonical tenant binding manifest (repo-bindings.json). It records the home pin, the fleet classes, the bound callers with their hashes, the canonical file bindings — the gitignore topic as the ordered fragment list plus the hash of the rendered governed region —, the CODEOWNERS render values, the optional conventions README render values, the config-seam pin, and the tooling-module pin. The schema is owned by the repository-governance home, strictly decoded, and proven by conformance vectors.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "home", "class", "callers", "files", "codeowners", "quality", "tools"],
   "properties": {
     "schemaVersion": {
-      "const": 1,
+      "const": 2,
       "description": "The canonical repo-bindings schema version."
     },
     "home": {
@@ -83,7 +83,7 @@
       "properties": {
         "lefthook": { "$ref": "#/$defs/fileBinding" },
         "gitattributes": { "$ref": "#/$defs/fileBinding" },
-        "gitignore": { "$ref": "#/$defs/fileBinding" },
+        "gitignore": { "$ref": "#/$defs/gitignoreBinding" },
         "dependabot": { "$ref": "#/$defs/fileBinding" }
       }
     },
@@ -96,6 +96,18 @@
         "defaultOwner": { "type": "string", "minLength": 1 }
       }
     },
+    "conventions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "organization", "repository", "rationale"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "organization": { "type": "string", "minLength": 1 },
+        "repository": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 }
+      },
+      "description": "The optional rule-sets conventions README render binding; an absent section skips the materialization proof."
+    },
     "quality": {
       "type": "object",
       "additionalProperties": false,
@@ -103,7 +115,7 @@
       "properties": {
         "config": { "type": "string", "minLength": 1 },
         "schemaVersion": {
-          "const": 3,
+          "const": 4,
           "description": "The pinned config-seam schema version."
         }
       }
@@ -131,6 +143,33 @@
         "sha256": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "gitignoreBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "fragments", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "fragments": {
+          "type": "array",
+          "description": "The ordered gitignore fragment list: the org core first, then ecosystem area and concern fragments.",
+          "minItems": 1,
+          "uniqueItems": true,
+          "prefixItems": [
+            { "const": "core", "description": "The org core fragment is always the first fragment." }
+          ],
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*/[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "description": "An ecosystem area or concern fragment (<area>/core or <area>/<concern>)."
+          }
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "The hash of the rendered governed region."
         }
       }
     }

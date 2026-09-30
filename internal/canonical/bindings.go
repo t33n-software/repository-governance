@@ -1,7 +1,9 @@
 // Package canonical implements the conformance verifier domain of the
 // repository-governance home: the tenant binding manifest (repo-bindings/v1),
-// the caller-hash and canonical-file proofs, the config-seam conformance
-// proof, the tool-pin admission proof, and the license-lane wiring proof.
+// the caller-hash and canonical-file proofs, the CODEOWNERS and conventions
+// README materialization proofs, the config-seam conformance proof, the
+// tool-pin admission proof, and the license content proof orchestrated
+// through the tenant-pinned hub CLI.
 //
 // The manifest is a typed trust boundary between the fleet and a tenant. It is
 // strictly decoded, versioned, and owned by this home; every proof is
@@ -19,10 +21,10 @@ import (
 
 // BindingsSchemaVersion is the canonical repo-bindings schema version
 // published by this home.
-const BindingsSchemaVersion = 1
+const BindingsSchemaVersion = 2
 
 // QualitySchemaVersion is the config-seam schema version this verifier proves.
-const QualitySchemaVersion = 3
+const QualitySchemaVersion = 4
 
 const (
 	maxBindingsBytes = 1 << 20
@@ -60,19 +62,28 @@ type CallerBinding struct {
 	SHA256 string
 }
 
-// FileBinding binds one canonical file topic to its path and content hash.
+// FileBinding binds one byte-identical canonical file topic to its path and
+// content hash.
 type FileBinding struct {
 	Path   string
 	SHA256 string
 }
 
-// FileBindings carries the canonical file topics. The gitignore topic is
-// verified in prefix mode (canonical core plus marked project block); every
-// other topic is byte-identical.
+// GitignoreBinding binds the gitignore topic to its path, the ordered
+// fragment list, and the hash of the rendered governed region.
+type GitignoreBinding struct {
+	Path      string
+	Fragments []string
+	SHA256    string
+}
+
+// FileBindings carries the canonical file topics. The byte-identical topics
+// compare by hash; the gitignore topic composes at bind time from the bound
+// fragment list and proves the rendered governed region byte-exact.
 type FileBindings struct {
 	Lefthook      FileBinding
 	Gitattributes FileBinding
-	Gitignore     FileBinding
+	Gitignore     GitignoreBinding
 	Dependabot    FileBinding
 }
 
@@ -80,6 +91,14 @@ type FileBindings struct {
 type CodeownersBinding struct {
 	Path         string
 	DefaultOwner string
+}
+
+// ConventionsBinding binds the rule-sets conventions README render values.
+type ConventionsBinding struct {
+	Path         string
+	Organization string
+	Repository   string
+	Rationale    string
 }
 
 // QualityBinding binds the config-seam expectations.
@@ -102,8 +121,11 @@ type Bindings struct {
 	Callers       []CallerBinding
 	Files         FileBindings
 	Codeowners    CodeownersBinding
-	Quality       QualityBinding
-	Tools         ToolsBinding
+	// Conventions carries the conventions README render binding; nil skips
+	// the proof for tenants that do not carry the family.
+	Conventions *ConventionsBinding
+	Quality     QualityBinding
+	Tools       ToolsBinding
 }
 
 // bindingsDocument is the wire form of the manifest. Unknown fields are
@@ -115,6 +137,7 @@ type bindingsDocument struct {
 	Callers       []callerJSON     `json:"callers"`
 	Files         filesJSON        `json:"files"`
 	Codeowners    codeownersJSON   `json:"codeowners"`
+	Conventions   *conventionsJSON `json:"conventions"`
 	Quality       qualityJSON      `json:"quality"`
 	Tools         toolsJSON        `json:"tools"`
 }
@@ -142,16 +165,29 @@ type fileJSON struct {
 	SHA256 string `json:"sha256"`
 }
 
+type gitignoreJSON struct {
+	Path      string   `json:"path"`
+	Fragments []string `json:"fragments"`
+	SHA256    string   `json:"sha256"`
+}
+
 type filesJSON struct {
-	Lefthook      fileJSON `json:"lefthook"`
-	Gitattributes fileJSON `json:"gitattributes"`
-	Gitignore     fileJSON `json:"gitignore"`
-	Dependabot    fileJSON `json:"dependabot"`
+	Lefthook      fileJSON      `json:"lefthook"`
+	Gitattributes fileJSON      `json:"gitattributes"`
+	Gitignore     gitignoreJSON `json:"gitignore"`
+	Dependabot    fileJSON      `json:"dependabot"`
 }
 
 type codeownersJSON struct {
 	Path         string `json:"path"`
 	DefaultOwner string `json:"defaultOwner"`
+}
+
+type conventionsJSON struct {
+	Path         string `json:"path"`
+	Organization string `json:"organization"`
+	Repository   string `json:"repository"`
+	Rationale    string `json:"rationale"`
 }
 
 type qualityJSON struct {
@@ -203,6 +239,9 @@ func validateDocument(document bindingsDocument) (Bindings, error) {
 	if err := validateCodeowners(document.Codeowners); err != nil {
 		return Bindings{}, err
 	}
+	if err := validateConventions(document.Conventions); err != nil {
+		return Bindings{}, err
+	}
 	if err := validateQuality(document.Quality); err != nil {
 		return Bindings{}, err
 	}
@@ -212,6 +251,15 @@ func validateDocument(document bindingsDocument) (Bindings, error) {
 	callers, err := validateCallers(document.Callers)
 	if err != nil {
 		return Bindings{}, err
+	}
+	var conventions *ConventionsBinding
+	if document.Conventions != nil {
+		conventions = &ConventionsBinding{
+			Path:         document.Conventions.Path,
+			Organization: document.Conventions.Organization,
+			Repository:   document.Conventions.Repository,
+			Rationale:    document.Conventions.Rationale,
+		}
 	}
 
 	return Bindings{
@@ -230,13 +278,14 @@ func validateDocument(document bindingsDocument) (Bindings, error) {
 		Files: FileBindings{
 			Lefthook:      FileBinding(document.Files.Lefthook),
 			Gitattributes: FileBinding(document.Files.Gitattributes),
-			Gitignore:     FileBinding(document.Files.Gitignore),
+			Gitignore:     GitignoreBinding(document.Files.Gitignore),
 			Dependabot:    FileBinding(document.Files.Dependabot),
 		},
 		Codeowners: CodeownersBinding{
 			Path:         document.Codeowners.Path,
 			DefaultOwner: document.Codeowners.DefaultOwner,
 		},
+		Conventions: conventions,
 		Quality: QualityBinding{
 			Config:        document.Quality.Config,
 			SchemaVersion: document.Quality.SchemaVersion,
@@ -307,7 +356,6 @@ func validateFiles(files filesJSON) error {
 	}{
 		{name: "lefthook", binding: files.Lefthook},
 		{name: "gitattributes", binding: files.Gitattributes},
-		{name: "gitignore", binding: files.Gitignore},
 		{name: "dependabot", binding: files.Dependabot},
 	} {
 		if err := validateManifestPath("files."+topic.name+".path", topic.binding.Path); err != nil {
@@ -316,6 +364,15 @@ func validateFiles(files filesJSON) error {
 		if !hashPattern.MatchString(topic.binding.SHA256) {
 			return fmt.Errorf("files.%s.sha256 must be a lowercase SHA-256 hex digest", topic.name)
 		}
+	}
+	if err := validateManifestPath("files.gitignore.path", files.Gitignore.Path); err != nil {
+		return err
+	}
+	if err := ValidateGitignoreFragments(files.Gitignore.Fragments); err != nil {
+		return fmt.Errorf("files.gitignore.fragments %s", err)
+	}
+	if !hashPattern.MatchString(files.Gitignore.SHA256) {
+		return errors.New("files.gitignore.sha256 must be a lowercase SHA-256 hex digest")
 	}
 	return nil
 }
@@ -326,6 +383,27 @@ func validateCodeowners(codeowners codeownersJSON) error {
 	}
 	if codeowners.DefaultOwner == "" {
 		return errors.New("codeowners.defaultOwner must not be empty")
+	}
+	return nil
+}
+
+// validateConventions validates the optional conventions render binding; a
+// nil binding skips the family.
+func validateConventions(conventions *conventionsJSON) error {
+	if conventions == nil {
+		return nil
+	}
+	if err := validateManifestPath("conventions.path", conventions.Path); err != nil {
+		return err
+	}
+	if conventions.Organization == "" {
+		return errors.New("conventions.organization must not be empty")
+	}
+	if conventions.Repository == "" {
+		return errors.New("conventions.repository must not be empty")
+	}
+	if conventions.Rationale == "" {
+		return errors.New("conventions.rationale must not be empty")
 	}
 	return nil
 }

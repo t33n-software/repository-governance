@@ -1,0 +1,44 @@
+# Hosting Platform: GitHub — Rule Sets
+[INTENT: REFERENCE]
+
+## Canonical source
+
+The GitHub rule sets for the organization `{{organization}}` are defined and
+managed exactly once, centrally, in the repository
+[`git-governance`](https://github.com/{{organization}}/git-governance) under
+`rulesets/github/`. That repository is the canonical source of truth for the
+JSON definitions: it explains the architecture, applies the definitions, and
+ships the versioned, importable artifacts.
+
+A local copy, redefinition, or deviation in this repository is an anti-pattern
+and forbidden (redundancy and drift prohibition). The only permitted
+deviations are named, auditable repository exceptions that are stricter than
+the organization baseline, never weaker.
+
+## Family in use
+
+This project (`{{repository}}`) uses the family **`quality-gates={{class}}`**:
+
+- {{platforms}}
+- Architectural rationale: {{rationale}}
+
+## Bound rule sets
+
+| Rule set | Class |
+|---|---|
+| `push-protections: secret artifact boundary` | classless (private/internal visibility) |
+| `branch-governance: ticket working branches` | classless (`~ALL`) |
+| `branch-governance: develop shared line (quality-gates={{class}})` | {{class}} |
+| `branch-governance: main shared line (quality-gates={{class}})` | {{class}} |
+| `branch-governance: release shared lines (quality-gates={{class}})` | {{class}} |
+| `branch-governance: support shared lines (quality-gates={{class}})` | {{class}} |
+
+## Management
+
+- Management level: the **organization** (`{{organization}}`), never the
+  individual repository level.
+- Class membership of this repository: custom property
+  `quality-gates={{class}}`.
+- Changes to the rule sets happen exclusively in the canonical repository and
+  are then re-imported at organization level (Organization Settings →
+  Repository → Rulesets).

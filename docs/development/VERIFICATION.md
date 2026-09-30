@@ -30,6 +30,16 @@ conformance":
 go tool -modfile tools/go.mod verify-canonical --repo .
 ```
 
+The flag parser accepts both the space-separated form shown above and the
+`--repo=<path>` assignment form; a flag without a value is a usage error.
+
+The verifier is environment-self-sufficient: it provisions every module it
+reads (its own home module and the canonical catalog module) through the
+tenant's integrity-pinned tooling channel and never trusts a warm module
+cache, so it runs identically in cold-cache CI lanes. The bound mechanism
+and its regression evidence are the convention
+`docs/conventions/verification/self-sufficient-module-resolution.md`.
+
 On a tenant pull request it proves, fail-closed:
 
 1. every declared caller file's SHA-256 equals the bound hash, the canonical
@@ -40,22 +50,64 @@ On a tenant pull request it proves, fail-closed:
    home that executes the gate);
 3. the tenant's `go.mod` carries an explicit, well-formed `toolchain`
    directive — the Go-native selector the payloads and the controlled-Go
-   setup action provision through `go-version-file: go.mod`;
+   setup action resolve fail-closed and install exactly through
+   `go-version` (never the `go` directive, never the latest patch);
 4. the canonical file family matches the bound hashes — byte-identical for
-   `lefthook.yml`, `.gitattributes`, and `dependabot.yml`, and the canonical
-   core as a verbatim prefix for `.gitignore`;
+   `lefthook.yml`, `.gitattributes`, and `dependabot.yml`; the `.gitignore`
+   topic re-renders the bound fragment list from the pinned home tree and
+   proves the rendered governed region byte-exact against the bound hash and
+   as a verbatim prefix of the tenant file — and, where the license-hub class
+   is bound, the composed tenant file is proven to never ignore the protected
+   license family;
 5. `.github/CODEOWNERS` is the exact materialization of the canonical template
    with the manifest's values;
-6. every tool pin in the tenant's tooling module is admitted by the canonical
-   tool catalog or is the home's own verifier tool;
+6. the canonical tool catalog carries its bound `$schema` identity — asserted
+   against the canonical catalog schema identity, never dereferenced — and
+   every tool pin in the tenant's tooling module is admitted by the catalog or
+   is the home's own verifier tool;
 7. where the license-hub family is bound, the license binding values and lock
-   exist and decode as JSON documents.
+   exist and decode as JSON documents, and the verifier orchestrates the
+   tenant-pinned `license` CLI through the tenant's tooling module: the locked
+   template is resolved inside the pinned license-hub module directory, and
+   the pinned tool proves pin integrity, drift freedom, and completeness of
+   the committed instance fail-closed — the verification semantics live
+   exactly once in the license hub and are never re-implemented by the
+   verifier;
+8. where the manifest binds the conventions family, the tenant's rule-sets
+   conventions README is the exact materialization of the canonical
+   value-free template with the manifest's values (organization, repository,
+   rationale) and the class-derived platform sentence; a class without a
+   canonical render fails closed.
 
 The tenant's binding manifest (`repo-bindings.json`) is strictly decoded
-against `schemas/repo-bindings/v1/schema.json`; the home's published caller
-hashes follow `schemas/caller-hashes/v1/schema.json`; the
+against `schemas/repo-bindings/v2/repo-bindings.schema.json`; the home's
+published caller hashes follow
+`schemas/caller-hashes/v1/caller-hashes.schema.json`; the
 `conformance/{positive,negative}/` vectors prove every acceptance and every
-rejection of the manifest decoder.
+rejection of the manifest decoder, and the golden renders under
+`conformance/gitignore/` prove every registered gitignore fragment set
+against the real home tree. Every schema document carries the
+`.schema.json` suffix — the canonical naming convention for schema files.
+
+## The provisioning CLI
+
+`cmd/provision-canonical` is the home's write exposure of the same render
+core: it reads the tenant's `repo-bindings.json`, resolves the pinned home
+tree (the explicit `--home` flag wins; without it, the home module is
+resolved through the tenant's integrity-pinned tooling module), renders
+every bound surface — the byte-identical callers and canonical files, the
+composed gitignore governed region with the preserved project block, the
+materialized CODEOWNERS, and the conventions README where the manifest binds
+the family — proves every copied master and rendered region against the
+manifest's recorded hashes fail-closed before any write, and writes the
+proven materializations. The selection is reviewable, versioned manifest
+data; the CLI carries no selection flags. `--dry-run` previews the plan; the
+mutation requires `--yes` in a non-interactive context or an explicit
+confirmation on a terminal. A provisioned tenant passes the conformance
+verifier byte for byte — the identity of the two exposures is proven by the
+contract test `TestProvisionedTenantPassesTheConformanceVerifier`. CI never
+provisions: the required check proves, the tenant provisions locally at
+onboarding.
 
 ## The contract-test set
 
@@ -64,12 +116,22 @@ home change it proves: the payloads carry only `on: workflow_call`, every
 action reference is a full-length commit SHA with a version comment, the
 permission matrix per lane, the absence of forbidden patterns
 (`pull_request_target`, workflow-level `GOFLAGS`, `cache: true`), the
-Go-native toolchain provisioning (`go-version-file: go.mod`, no JSON
-extraction shim) and the gate job names of the payloads, the callers'
+exact pinned toolchain provisioning (the fail-closed resolution step reads
+the `toolchain` directive of the tenant's `go.mod` and `go-version` installs
+exactly that version — never `go-version-file`, no JSON extraction shim) and
+the gate job names of the payloads, the callers'
 four-shared-line trigger coverage and exact job names, the byte identity
 between the home's own callers and the canonical masters, the caller-hashes
 record against the recomputed master content, the canonical file family, the
-CODEOWNERS template and its materialization, the schema conformance, the
+gitignore fragment tree (the registered fragments, the superseded single-core
+master's absence, the mark freedom, and the org core's secret-artifact
+coverage), the golden renders of every registered fragment set, the
+composition invariants (the overlap guard and the pattern-free committed
+lockfile policy fragment), the home's own `.gitignore` as the rendered
+composition of its bound fragments at its bound pin, the
+CODEOWNERS template and its materialization, the conventions README template
+(token surface, value freedom, canonical section structure), the schema
+conformance, the
 conformance vectors, the home's own binding manifest self-consistency, the
 home's own `go.mod` toolchain directive, and the absence of legacy artifacts
 (`_BAK` files, JSON payload copies in `docs/`).

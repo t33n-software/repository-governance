@@ -9,7 +9,7 @@ import (
 )
 
 // qualityConfigDocument is the structural wire form of the config seam
-// (git-governance.quality.json) at schema version 3. The verifier proves the
+// (git-governance.quality.json) at schema version 4. The verifier proves the
 // pinned schema version with strict structural decoding; the semantic gate
 // rules (gate-name uniqueness, duration parsing, discovery overrides) are
 // owned by the producer home that executes the gate — the tenant's quality
@@ -17,13 +17,17 @@ import (
 type qualityConfigDocument struct {
 	SchemaVersion int                  `json:"schemaVersion"`
 	Toolchain     qualityToolchainJSON `json:"toolchain"`
+	Extends       []string             `json:"extends"`
 	Defaults      qualityScopeJSON     `json:"defaults"`
 	Gates         []qualityGateJSON    `json:"gates"`
 	Project       qualityProjectJSON   `json:"project"`
 }
 
+// qualityToolchainJSON is the language-keyed toolchain identity of the v4
+// seam: one form serves every language territory without a schema fork.
 type qualityToolchainJSON struct {
-	GoVersion string `json:"goVersion"`
+	Language string `json:"language"`
+	Version  string `json:"version"`
 }
 
 type qualityScopeJSON struct {
@@ -57,24 +61,46 @@ type qualityFuzzJSON struct {
 	Time    string `json:"time"`
 }
 
-// DecodeQualityConfigVersion strictly decodes the tenant's configuration seam
-// and returns its declared schema version. Unknown fields, trailing documents,
-// and type mismatches are rejected with a precise error.
-func DecodeQualityConfigVersion(contents []byte) (int, error) {
+// decodeQualityConfig strictly decodes the tenant's configuration seam wire
+// form. Unknown fields, trailing documents, and type mismatches are rejected
+// with a precise error.
+func decodeQualityConfig(contents []byte) (qualityConfigDocument, error) {
+	var document qualityConfigDocument
 	if len(contents) == 0 {
-		return 0, errors.New("quality configuration must not be empty")
+		return document, errors.New("quality configuration must not be empty")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(contents))
 	decoder.DisallowUnknownFields()
-	var document qualityConfigDocument
 	if err := decoder.Decode(&document); err != nil {
-		return 0, fmt.Errorf("quality configuration must contain valid JSON with known fields: %w", err)
+		return document, fmt.Errorf("quality configuration must contain valid JSON with known fields: %w", err)
 	}
 	var extra any
 	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
-		return 0, errors.New("quality configuration must contain exactly one JSON document")
+		return document, errors.New("quality configuration must contain exactly one JSON document")
+	}
+	return document, nil
+}
+
+// DecodeQualityConfigVersion strictly decodes the tenant's configuration seam
+// and returns its declared schema version.
+func DecodeQualityConfigVersion(contents []byte) (int, error) {
+	document, err := decodeQualityConfig(contents)
+	if err != nil {
+		return 0, err
 	}
 	return document.SchemaVersion, nil
+}
+
+// DecodeQualityConfigExtends strictly decodes the tenant's configuration seam
+// and returns its declared capability pack references. The reference grammar
+// is validated by the producer home's decoder at gate time; the verifier
+// proves the resolution of every declared reference fail-closed.
+func DecodeQualityConfigExtends(contents []byte) ([]string, error) {
+	document, err := decodeQualityConfig(contents)
+	if err != nil {
+		return nil, err
+	}
+	return document.Extends, nil
 }
 
 // verifyQuality proves the tenant's configuration seam strictly decodes and

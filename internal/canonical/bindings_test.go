@@ -8,7 +8,7 @@ import (
 // validBindingsJSON is the reference manifest every mutation starts from.
 func validBindingsJSON() string {
 	return `{
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "home": {
     "repository": "t33n-software/repository-governance",
     "version": "v1.0.0",
@@ -29,11 +29,11 @@ func validBindingsJSON() string {
   "files": {
     "lefthook": { "path": "lefthook.yml", "sha256": "` + strings.Repeat("a", 64) + `" },
     "gitattributes": { "path": ".gitattributes", "sha256": "` + strings.Repeat("b", 64) + `" },
-    "gitignore": { "path": ".gitignore", "sha256": "` + strings.Repeat("c", 64) + `" },
+    "gitignore": { "path": ".gitignore", "fragments": ["core", "go/core"], "sha256": "` + strings.Repeat("c", 64) + `" },
     "dependabot": { "path": ".github/dependabot.yml", "sha256": "` + strings.Repeat("d", 64) + `" }
   },
   "codeowners": { "path": ".github/CODEOWNERS", "defaultOwner": "@CyberT33N" },
-  "quality": { "config": "git-governance.quality.json", "schemaVersion": 3 },
+  "quality": { "config": "git-governance.quality.json", "schemaVersion": 4 },
   "tools": { "module": "tools/go.mod", "catalogVersion": 1 }
 }`
 }
@@ -43,7 +43,7 @@ func TestDecodeBindingsAcceptsTheReferenceManifest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DecodeBindings: %v", err)
 	}
-	if bindings.SchemaVersion != 1 {
+	if bindings.SchemaVersion != 2 {
 		t.Fatalf("SchemaVersion = %d", bindings.SchemaVersion)
 	}
 	if bindings.Home.Repository != "t33n-software/repository-governance" {
@@ -61,10 +61,16 @@ func TestDecodeBindingsAcceptsTheReferenceManifest(t *testing.T) {
 	if bindings.Files.Lefthook.Path != "lefthook.yml" {
 		t.Fatalf("Files.Lefthook = %+v", bindings.Files.Lefthook)
 	}
+	if strings.Join(bindings.Files.Gitignore.Fragments, ",") != "core,go/core" {
+		t.Fatalf("Files.Gitignore = %+v", bindings.Files.Gitignore)
+	}
 	if bindings.Codeowners.DefaultOwner != "@CyberT33N" {
 		t.Fatalf("Codeowners = %+v", bindings.Codeowners)
 	}
-	if bindings.Quality.SchemaVersion != 3 {
+	if bindings.Conventions != nil {
+		t.Fatalf("Conventions = %+v", bindings.Conventions)
+	}
+	if bindings.Quality.SchemaVersion != 4 {
 		t.Fatalf("Quality = %+v", bindings.Quality)
 	}
 	if bindings.Tools.Module != "tools/go.mod" || bindings.Tools.CatalogVersion != 1 {
@@ -79,6 +85,82 @@ func TestDecodeBindingsAcceptsAnOptionalVersionlessHome(t *testing.T) {
 	}
 }
 
+// validBindingsWithConventionsJSON carries the optional conventions section.
+func validBindingsWithConventionsJSON() string {
+	return strings.Replace(validBindingsJSON(), `  "codeowners": { "path": ".github/CODEOWNERS", "defaultOwner": "@CyberT33N" },`, `  "codeowners": { "path": ".github/CODEOWNERS", "defaultOwner": "@CyberT33N" },
+  "conventions": { "path": "docs/conventions/hosting-platforms/github/rule-sets/README.md", "organization": "t33n-software", "repository": "supply-chain-governance", "rationale": "Portable schemas only." },`, 1)
+}
+
+func TestDecodeBindingsAcceptsConventions(t *testing.T) {
+	bindings, err := DecodeBindings([]byte(validBindingsWithConventionsJSON()))
+	if err != nil {
+		t.Fatalf("DecodeBindings: %v", err)
+	}
+	if bindings.Conventions == nil {
+		t.Fatal("Conventions must be bound")
+	}
+	if bindings.Conventions.Path != "docs/conventions/hosting-platforms/github/rule-sets/README.md" {
+		t.Fatalf("Conventions.Path = %q", bindings.Conventions.Path)
+	}
+	if bindings.Conventions.Organization != "t33n-software" {
+		t.Fatalf("Conventions.Organization = %q", bindings.Conventions.Organization)
+	}
+	if bindings.Conventions.Repository != "supply-chain-governance" {
+		t.Fatalf("Conventions.Repository = %q", bindings.Conventions.Repository)
+	}
+	if bindings.Conventions.Rationale != "Portable schemas only." {
+		t.Fatalf("Conventions.Rationale = %q", bindings.Conventions.Rationale)
+	}
+}
+
+func TestDecodeBindingsConventionsRejections(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(string) string
+		message string
+	}{
+		{
+			name: "empty organization",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"organization": "t33n-software"`, `"organization": ""`, 1)
+			},
+			message: "conventions.organization",
+		},
+		{
+			name: "empty repository",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"repository": "supply-chain-governance"`, `"repository": ""`, 1)
+			},
+			message: "conventions.repository",
+		},
+		{
+			name: "empty rationale",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"rationale": "Portable schemas only."`, `"rationale": ""`, 1)
+			},
+			message: "conventions.rationale",
+		},
+		{
+			name: "bad path",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"path": "docs/conventions/hosting-platforms/github/rule-sets/README.md"`, `"path": "../README.md"`, 1)
+			},
+			message: "conventions.path",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := DecodeBindings([]byte(test.mutate(validBindingsWithConventionsJSON())))
+			if err == nil {
+				t.Fatalf("expected rejection containing %q", test.message)
+			}
+			if !strings.Contains(err.Error(), test.message) {
+				t.Fatalf("error %q does not contain %q", err.Error(), test.message)
+			}
+		})
+	}
+}
+
 func TestDecodeBindingsRejections(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -87,22 +169,28 @@ func TestDecodeBindingsRejections(t *testing.T) {
 	}{
 		{
 			name:    "wrong schema version",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"schemaVersion": 1`, `"schemaVersion": 2`, 1) },
-			message: "schemaVersion must equal 1",
+			mutate:  func(doc string) string { return strings.Replace(doc, `"schemaVersion": 2`, `"schemaVersion": 1`, 1) },
+			message: "schemaVersion must equal 2",
 		},
 		{
-			name:    "unknown field",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"schemaVersion": 1,`, `"schemaVersion": 1, "bogus": true,`, 1) },
+			name: "unknown field",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"schemaVersion": 2,`, `"schemaVersion": 2, "bogus": true,`, 1)
+			},
 			message: "known fields",
 		},
 		{
-			name:    "bad home repository",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"t33n-software/repository-governance"`, `"T33N"`, 1) },
+			name: "bad home repository",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"t33n-software/repository-governance"`, `"T33N"`, 1)
+			},
 			message: "home.repository",
 		},
 		{
-			name:    "bad home sha",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"89be739ee8a1d1ed6ebbe97dd1556a253477d242"`, `"89be739"`, 1) },
+			name: "bad home sha",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"89be739ee8a1d1ed6ebbe97dd1556a253477d242"`, `"89be739"`, 1)
+			},
 			message: "home.sha",
 		},
 		{
@@ -111,23 +199,31 @@ func TestDecodeBindingsRejections(t *testing.T) {
 			message: "home.version",
 		},
 		{
-			name:    "bad class",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"qualityGates": "linux-only"`, `"qualityGates": "windows-only"`, 1) },
+			name: "bad class",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"qualityGates": "linux-only"`, `"qualityGates": "windows-only"`, 1)
+			},
 			message: "class.qualityGates",
 		},
 		{
-			name:    "bad caller file",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"file": ".github/workflows/ci.yml"`, `"file": "ci.yml"`, 1) },
+			name: "bad caller file",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"file": ".github/workflows/ci.yml"`, `"file": "ci.yml"`, 1)
+			},
 			message: "callers file",
 		},
 		{
-			name:    "bad caller master",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"master": "hosting-platforms/github/workflows/callers/go/ci.yml"`, `"master": "ci.yml"`, 1) },
+			name: "bad caller master",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"master": "hosting-platforms/github/workflows/callers/go/ci.yml"`, `"master": "ci.yml"`, 1)
+			},
 			message: "callers master",
 		},
 		{
-			name:    "bad caller hash",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"f29a65bd73fe575b159123a9d4bebed86ab4eebe3c5dc5dac31c96e7fb7c4c4a"`, `"f29a"`, 1) },
+			name: "bad caller hash",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"f29a65bd73fe575b159123a9d4bebed86ab4eebe3c5dc5dac31c96e7fb7c4c4a"`, `"f29a"`, 1)
+			},
 			message: "callers sha256",
 		},
 		{
@@ -157,28 +253,80 @@ func TestDecodeBindingsRejections(t *testing.T) {
 			message: "master must be unique",
 		},
 		{
-			name:    "bad codeowners path",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"path": ".github/CODEOWNERS"`, `"path": "../CODEOWNERS"`, 1) },
+			name: "bad codeowners path",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"path": ".github/CODEOWNERS"`, `"path": "../CODEOWNERS"`, 1)
+			},
 			message: "codeowners.path",
 		},
 		{
-			name:    "bad quality config path",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"config": "git-governance.quality.json"`, `"config": ""`, 1) },
+			name: "bad quality config path",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"config": "git-governance.quality.json"`, `"config": ""`, 1)
+			},
 			message: "quality.config",
 		},
 		{
-			name:    "bad files hash",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"sha256": "`+strings.Repeat("a", 64)+`"`, `"sha256": "aa"`, 1) },
+			name: "bad files hash",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"sha256": "`+strings.Repeat("a", 64)+`"`, `"sha256": "aa"`, 1)
+			},
 			message: "files.lefthook.sha256",
 		},
 		{
-			name:    "empty codeowners owner",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"defaultOwner": "@CyberT33N"`, `"defaultOwner": ""`, 1) },
+			name: "missing gitignore fragments",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"fragments": ["core", "go/core"], `, ``, 1)
+			},
+			message: "files.gitignore.fragments must contain at least the core fragment",
+		},
+		{
+			name: "gitignore core not first",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"fragments": ["core", "go/core"]`, `"fragments": ["go/core", "core"]`, 1)
+			},
+			message: "files.gitignore.fragments must begin with the core fragment",
+		},
+		{
+			name: "invalid gitignore fragment",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"fragments": ["core", "go/core"]`, `"fragments": ["core", "../evil"]`, 1)
+			},
+			message: "files.gitignore.fragments must be a canonical fragment name",
+		},
+		{
+			name: "duplicate gitignore fragment",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"fragments": ["core", "go/core"]`, `"fragments": ["core", "core"]`, 1)
+			},
+			message: "files.gitignore.fragments must not repeat a fragment",
+		},
+		{
+			name: "bad gitignore path",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"gitignore": { "path": ".gitignore"`, `"gitignore": { "path": "../.gitignore"`, 1)
+			},
+			message: "files.gitignore.path",
+		},
+		{
+			name: "bad gitignore hash",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"sha256": "`+strings.Repeat("c", 64)+`"`, `"sha256": "cc"`, 1)
+			},
+			message: "files.gitignore.sha256",
+		},
+		{
+			name: "empty codeowners owner",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"defaultOwner": "@CyberT33N"`, `"defaultOwner": ""`, 1)
+			},
 			message: "codeowners.defaultOwner",
 		},
 		{
-			name:    "wrong quality schema version",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"schemaVersion": 3 }`, `"schemaVersion": 2 }`, 1) },
+			name: "wrong quality schema version",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"schemaVersion": 4 }`, `"schemaVersion": 3 }`, 1)
+			},
 			message: "quality.schemaVersion",
 		},
 		{
@@ -192,23 +340,31 @@ func TestDecodeBindingsRejections(t *testing.T) {
 			message: "tools.module",
 		},
 		{
-			name:    "parent traversal in a path",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"path": "lefthook.yml"`, `"path": "../lefthook.yml"`, 1) },
+			name: "parent traversal in a path",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"path": "lefthook.yml"`, `"path": "../lefthook.yml"`, 1)
+			},
 			message: "parent traversal",
 		},
 		{
-			name:    "absolute path",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"path": "lefthook.yml"`, `"path": "/lefthook.yml"`, 1) },
+			name: "absolute path",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"path": "lefthook.yml"`, `"path": "/lefthook.yml"`, 1)
+			},
 			message: "repository-relative",
 		},
 		{
-			name:    "windows absolute path",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"path": "lefthook.yml"`, `"path": "C:/lefthook.yml"`, 1) },
+			name: "windows absolute path",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"path": "lefthook.yml"`, `"path": "C:/lefthook.yml"`, 1)
+			},
 			message: "repository-relative",
 		},
 		{
-			name:    "backslash path",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"path": "lefthook.yml"`, `"path": "docs\\\\lefthook.yml"`, 1) },
+			name: "backslash path",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"path": "lefthook.yml"`, `"path": "docs\\\\lefthook.yml"`, 1)
+			},
 			message: "forward slashes",
 		},
 	}
