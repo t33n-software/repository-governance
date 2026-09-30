@@ -6,7 +6,11 @@
 package packaging
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -817,5 +821,79 @@ func TestNoLegacyArtifacts(t *testing.T) {
 	}
 	if len(legacy) > 0 {
 		t.Fatalf("legacy artifacts are forbidden: %v", legacy)
+	}
+}
+
+// TestProvisionedTenantPassesTheConformanceVerifier proves the identity of
+// the two exposures of one core truth: the tenant surfaces provisioned by
+// the home's provisioning CLI pass the conformance verifier byte for byte
+// against the same pinned home tree. The write exposure never re-implements
+// a proof the verify exposure owns; this contract test binds the identity.
+func TestProvisionedTenantPassesTheConformanceVerifier(t *testing.T) {
+	home := repoRoot(t)
+	manifest := readArtifact(t, "repo-bindings.json")
+	bindings, err := canonical.DecodeBindings([]byte(manifest))
+	if err != nil {
+		t.Fatalf("the home's own binding manifest must decode: %v", err)
+	}
+
+	tenant := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tenant, "tools"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Tenant-authored data the provisioning CLI never writes: the binding
+	// manifest, the config seam, and the module declarations.
+	tenantData := map[string]string{
+		"repo-bindings.json":             manifest,
+		"git-governance.quality.json":    readArtifact(t, "git-governance.quality.json"),
+		"go.mod":                         "module example.test/tenant\n\ngo 1.26.6\n\ntoolchain go1.26.6\n",
+		filepath.Join("tools", "go.mod"): "module example.test/tenant/tools\n\ngo 1.26.6\n",
+	}
+	for path, contents := range tenantData {
+		if err := os.WriteFile(filepath.Join(tenant, path), []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	provisioner := canonical.NewProvisioner(tenant, home)
+	materials, err := provisioner.Apply(bindings)
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if len(materials) != len(bindings.Callers)+5 {
+		t.Fatalf("materials = %d, want %d", len(materials), len(bindings.Callers)+5)
+	}
+
+	// The verifier runs with the module seams stubbed: the fixture declares
+	// no capability packs and no tool pins, so no module resolution runs.
+	verifier := canonical.Verifier{
+		TenantRoot: tenant,
+		ReadTenant: func(path string) ([]byte, error) {
+			return os.ReadFile(filepath.Join(tenant, filepath.FromSlash(path)))
+		},
+		ReadHome: func(path string) ([]byte, error) {
+			return os.ReadFile(filepath.Join(home, filepath.FromSlash(path)))
+		},
+		ReadModule: func(dir, path string) ([]byte, error) {
+			return nil, errors.New("module seams are stubbed")
+		},
+		ListTenant: func(path string) ([]fs.DirEntry, error) {
+			return os.ReadDir(filepath.Join(tenant, filepath.FromSlash(path)))
+		},
+		ListModule: func(dir, path string) ([]fs.DirEntry, error) {
+			return nil, errors.New("module seams are stubbed")
+		},
+		ResolveModule: func(context.Context, string, string) (string, error) {
+			return "", errors.New("module seams are stubbed")
+		},
+		RunTool: func(context.Context, string, ...string) (string, error) {
+			return "", errors.New("module seams are stubbed")
+		},
+		Stdout: io.Discard,
+		Stderr: io.Discard,
+	}
+	findings := verifier.Verify(context.Background(), bindings)
+	if len(findings) > 0 {
+		t.Fatalf("the provisioned tenant must pass the conformance verifier:\n%v", findings)
 	}
 }
