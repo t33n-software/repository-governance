@@ -89,6 +89,26 @@ rejection of the manifest decoder, and the golden renders under
 against the real home tree. Every schema document carries the
 `.schema.json` suffix — the canonical naming convention for schema files.
 
+## The provisioning CLI
+
+`cmd/provision-canonical` is the home's write exposure of the same render
+core: it reads the tenant's `repo-bindings.json`, resolves the pinned home
+tree (the explicit `--home` flag wins; without it, the home module is
+resolved through the tenant's integrity-pinned tooling module), renders
+every bound surface — the byte-identical callers and canonical files, the
+composed gitignore governed region with the preserved project block, the
+materialized CODEOWNERS, and the conventions README where the manifest binds
+the family — proves every copied master and rendered region against the
+manifest's recorded hashes fail-closed before any write, and writes the
+proven materializations. The selection is reviewable, versioned manifest
+data; the CLI carries no selection flags. `--dry-run` previews the plan; the
+mutation requires `--yes` in a non-interactive context or an explicit
+confirmation on a terminal. A provisioned tenant passes the conformance
+verifier byte for byte — the identity of the two exposures is proven by the
+contract test `TestProvisionedTenantPassesTheConformanceVerifier`. CI never
+provisions: the required check proves, the tenant provisions locally at
+onboarding.
+
 ## The contract-test set
 
 `internal/packaging/` carries the one canonical contract-test set. On every
