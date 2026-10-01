@@ -542,7 +542,21 @@ func TestConformancePayloadTracksTheCanonicalPin(t *testing.T) {
 
 func TestCanonicalFileFamily(t *testing.T) {
 	gitattributes := readArtifact(t, "hosting-platforms/github/files/gitattributes/.gitattributes")
-	if gitattributes != "* text=auto eol=lf\n" {
+	if gitattributes != "* text=auto eol=lf\n"+
+		"*.7z filter=lfs diff=lfs merge=lfs -text\n"+
+		"*.duckdb filter=lfs diff=lfs merge=lfs -text\n"+
+		"*.gguf filter=lfs diff=lfs merge=lfs -text\n"+
+		"*.onnx filter=lfs diff=lfs merge=lfs -text\n"+
+		"*.parquet filter=lfs diff=lfs merge=lfs -text\n"+
+		"*.pdf filter=lfs diff=lfs merge=lfs -text\n"+
+		"*.pt filter=lfs diff=lfs merge=lfs -text\n"+
+		"*.safetensors filter=lfs diff=lfs merge=lfs -text\n"+
+		"*.sqlite filter=lfs diff=lfs merge=lfs -text\n"+
+		"*.sqlite3 filter=lfs diff=lfs merge=lfs -text\n"+
+		"*.tar filter=lfs diff=lfs merge=lfs -text\n"+
+		"*.tar.gz filter=lfs diff=lfs merge=lfs -text\n"+
+		"*.tgz filter=lfs diff=lfs merge=lfs -text\n"+
+		"*.zip filter=lfs diff=lfs merge=lfs -text\n" {
 		t.Fatalf("the gitattributes core drifted: %q", gitattributes)
 	}
 
