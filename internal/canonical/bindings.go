@@ -29,7 +29,17 @@ const QualitySchemaVersion = 4
 const (
 	maxBindingsBytes = 1 << 20
 	maxCallerCount   = 16
+	maxArtifactCount = 32
 )
+
+// configArtifactFamilies is the closed set of byte-identity config families
+// the verifier proves; the pnpm family is the class-four policy proof and
+// binds through PnpmWorkspace instead.
+var configArtifactFamilies = map[string]struct{}{
+	"tsconfig": {},
+	"vitest":   {},
+	"tsdown":   {},
+}
 
 var (
 	repositoryPattern = regexp.MustCompile(`^[a-z0-9-]+/[a-z0-9-]+$`)
@@ -38,6 +48,7 @@ var (
 	versionPattern    = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+$`)
 	callerFilePattern = regexp.MustCompile(`^\.github/workflows/[a-z0-9-]+\.yml$`)
 	masterPattern     = regexp.MustCompile(`^hosting-platforms/github/workflows/callers/[a-z0-9-]+/[a-z0-9-]+\.yml$`)
+	categoryPattern   = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*){0,2}$`)
 )
 
 // HomePin binds the home repository coordinate and its release identity. The
@@ -113,6 +124,48 @@ type ToolsBinding struct {
 	CatalogVersion int
 }
 
+// TerritoryPin binds the territory home coordinate and its trust anchor. The
+// SHA is the trust anchor; the territory carries the pinned config artifacts.
+type TerritoryPin struct {
+	Repository string
+	SHA        string
+}
+
+// RegistryPin binds the territory category registry instance: its
+// territory-relative path and its content hash.
+type RegistryPin struct {
+	Path   string
+	SHA256 string
+}
+
+// ArtifactBinding binds one byte-identical config artifact topic: the tenant
+// path, its config family, and the content hash the verifier proves against
+// both the tenant file and the pinned territory artifact.
+type ArtifactBinding struct {
+	Family string
+	Path   string
+	SHA256 string
+}
+
+// PnpmWorkspaceBinding binds the tenant's pnpm workspace document path; the
+// policy invariants are proven against the territory's fortress baseline.
+type PnpmWorkspaceBinding struct {
+	Path string
+}
+
+// ToolchainBindings binds the territory config topics. A nil binding skips
+// every config-topic proof for tenants that carry no category binding; a
+// binding without the seam's category declaration is a finding, never a
+// silent state.
+type ToolchainBindings struct {
+	Territory     TerritoryPin
+	Registry      RegistryPin
+	Category      string
+	Artifacts     []ArtifactBinding
+	PnpmWorkspace PnpmWorkspaceBinding
+	SourceRoots   []string
+}
+
 // Bindings is the tenant's canonical binding manifest (repo-bindings/v1).
 type Bindings struct {
 	SchemaVersion int
@@ -126,6 +179,9 @@ type Bindings struct {
 	Conventions *ConventionsBinding
 	Quality     QualityBinding
 	Tools       ToolsBinding
+	// Toolchain carries the optional territory config-topic binding; nil
+	// skips the category proofs for tenants that bind none.
+	Toolchain *ToolchainBindings
 }
 
 // bindingsDocument is the wire form of the manifest. Unknown fields are
@@ -140,6 +196,7 @@ type bindingsDocument struct {
 	Conventions   *conventionsJSON `json:"conventions"`
 	Quality       qualityJSON      `json:"quality"`
 	Tools         toolsJSON        `json:"tools"`
+	Toolchain     *toolchainJSON   `json:"toolchain"`
 }
 
 type homeJSON struct {
@@ -200,6 +257,35 @@ type toolsJSON struct {
 	CatalogVersion int    `json:"catalogVersion"`
 }
 
+type territoryJSON struct {
+	Repository string `json:"repository"`
+	SHA        string `json:"sha"`
+}
+
+type registryJSON struct {
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256"`
+}
+
+type artifactJSON struct {
+	Family string `json:"family"`
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256"`
+}
+
+type pnpmWorkspaceJSON struct {
+	Path string `json:"path"`
+}
+
+type toolchainJSON struct {
+	Territory     territoryJSON     `json:"territory"`
+	Registry      registryJSON      `json:"registry"`
+	Category      string            `json:"category"`
+	Artifacts     []artifactJSON    `json:"artifacts"`
+	PnpmWorkspace pnpmWorkspaceJSON `json:"pnpmWorkspace"`
+	SourceRoots   []string          `json:"sourceRoots"`
+}
+
 // DecodeBindings strictly decodes and validates the canonical binding
 // manifest. Unknown fields, trailing documents, and invariant violations are
 // rejected with a precise field error.
@@ -248,6 +334,10 @@ func validateDocument(document bindingsDocument) (Bindings, error) {
 	if err := validateTools(document.Tools); err != nil {
 		return Bindings{}, err
 	}
+	toolchain, err := validateToolchain(document.Toolchain)
+	if err != nil {
+		return Bindings{}, err
+	}
 	callers, err := validateCallers(document.Callers)
 	if err != nil {
 		return Bindings{}, err
@@ -294,6 +384,7 @@ func validateDocument(document bindingsDocument) (Bindings, error) {
 			Module:         document.Tools.Module,
 			CatalogVersion: document.Tools.CatalogVersion,
 		},
+		Toolchain: toolchain,
 	}, nil
 }
 
@@ -426,6 +517,80 @@ func validateTools(tools toolsJSON) error {
 		return fmt.Errorf("tools.catalogVersion must equal %d", 1)
 	}
 	return nil
+}
+
+// validateToolchain validates the optional territory config-topic binding; a
+// nil binding skips the category proofs for tenants that bind none.
+func validateToolchain(toolchain *toolchainJSON) (*ToolchainBindings, error) {
+	if toolchain == nil {
+		return nil, nil
+	}
+	if !repositoryPattern.MatchString(toolchain.Territory.Repository) {
+		return nil, fmt.Errorf("toolchain.territory.repository must be an owner/repository coordinate: %q", toolchain.Territory.Repository)
+	}
+	if !shaPattern.MatchString(toolchain.Territory.SHA) {
+		return nil, errors.New("toolchain.territory.sha must be a full-length lowercase commit SHA")
+	}
+	if err := validateManifestPath("toolchain.registry.path", toolchain.Registry.Path); err != nil {
+		return nil, err
+	}
+	if !hashPattern.MatchString(toolchain.Registry.SHA256) {
+		return nil, errors.New("toolchain.registry.sha256 must be a lowercase SHA-256 hex digest")
+	}
+	if !categoryPattern.MatchString(toolchain.Category) {
+		return nil, fmt.Errorf("toolchain.category must be a hierarchical kebab category path: %q", toolchain.Category)
+	}
+	if len(toolchain.Artifacts) == 0 || len(toolchain.Artifacts) > maxArtifactCount {
+		return nil, fmt.Errorf("toolchain.artifacts must contain between 1 and %d entries", maxArtifactCount)
+	}
+	seen := make(map[string]struct{}, len(toolchain.Artifacts))
+	artifacts := make([]ArtifactBinding, 0, len(toolchain.Artifacts))
+	for _, artifact := range toolchain.Artifacts {
+		if _, known := configArtifactFamilies[artifact.Family]; !known {
+			return nil, fmt.Errorf("toolchain.artifacts family must be tsconfig, vitest, or tsdown: %q", artifact.Family)
+		}
+		if err := validateManifestPath("toolchain.artifacts.path", artifact.Path); err != nil {
+			return nil, err
+		}
+		if !hashPattern.MatchString(artifact.SHA256) {
+			return nil, fmt.Errorf("toolchain.artifacts sha256 for the family %s must be a lowercase SHA-256 hex digest", artifact.Family)
+		}
+		key := artifact.Family + "/" + artifact.Path
+		if _, found := seen[key]; found {
+			return nil, fmt.Errorf("toolchain.artifacts must not repeat a family and path: %q", key)
+		}
+		seen[key] = struct{}{}
+		artifacts = append(artifacts, ArtifactBinding(artifact))
+	}
+	if err := validateManifestPath("toolchain.pnpmWorkspace.path", toolchain.PnpmWorkspace.Path); err != nil {
+		return nil, err
+	}
+	seenRoots := make(map[string]struct{}, len(toolchain.SourceRoots))
+	sourceRoots := make([]string, 0, len(toolchain.SourceRoots))
+	for _, root := range toolchain.SourceRoots {
+		if err := validateManifestPath("toolchain.sourceRoots", root); err != nil {
+			return nil, err
+		}
+		if _, found := seenRoots[root]; found {
+			return nil, fmt.Errorf("toolchain.sourceRoots must not repeat a root: %q", root)
+		}
+		seenRoots[root] = struct{}{}
+		sourceRoots = append(sourceRoots, root)
+	}
+	return &ToolchainBindings{
+		Territory: TerritoryPin{
+			Repository: toolchain.Territory.Repository,
+			SHA:        toolchain.Territory.SHA,
+		},
+		Registry: RegistryPin{
+			Path:   toolchain.Registry.Path,
+			SHA256: toolchain.Registry.SHA256,
+		},
+		Category:      toolchain.Category,
+		Artifacts:     artifacts,
+		PnpmWorkspace: PnpmWorkspaceBinding{Path: toolchain.PnpmWorkspace.Path},
+		SourceRoots:   sourceRoots,
+	}, nil
 }
 
 // validateManifestPath rejects absolute paths, parent traversal, and

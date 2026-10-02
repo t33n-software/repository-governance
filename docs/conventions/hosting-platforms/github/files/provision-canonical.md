@@ -3,12 +3,7 @@
 This document is the **mechanism** surface of the tenant-surface
 provisioning: how a tenant's canonical surfaces are rendered and written
 from the binding manifest, and how the provisioning relates to the
-conformance verifier. The **rule** — the artifact classes, the
-render-and-verify model, and the tenant integration seams — is owned by the
-knowledge plane (`REPOSITORY_GOVERNANCE_HOME_CONTRACT_001`,
-`REPOSITORY_GOVERNANCE_CANONICAL_FILES_CONVENTION_REFERENCE_001`, and
-`DEVELOPER_PLATFORM_FLEET_GOVERNANCE_ARCHITECTURE_001`) and is re-referenced
-here, never restated.
+conformance verifier.
 
 ## The provisioning CLI
 

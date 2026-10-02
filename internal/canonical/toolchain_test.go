@@ -58,14 +58,29 @@ func TestToolchainDirective(t *testing.T) {
 	})
 }
 
-func TestVerifyToolchain(t *testing.T) {
+func TestVerifyToolchainDirective(t *testing.T) {
+	goSeam := qualityConfigDocument{Toolchain: qualityToolchainJSON{Language: "go"}}
+
 	t.Run("pass", func(t *testing.T) {
 		verifier := Verifier{
 			ReadTenant: func(path string) ([]byte, error) {
 				return []byte("module example.com/tenant\n\ntoolchain go1.26.6\n"), nil
 			},
 		}
-		if findings := verifier.verifyToolchain(); len(findings) != 0 {
+		if findings := verifier.verifyToolchainDirective(goSeam); len(findings) != 0 {
+			t.Fatalf("findings = %v", findings)
+		}
+	})
+
+	t.Run("another language skips the proof", func(t *testing.T) {
+		verifier := Verifier{
+			ReadTenant: func(path string) ([]byte, error) {
+				t.Fatal("the go.mod proof must not run for another language")
+				return nil, nil
+			},
+		}
+		seam := qualityConfigDocument{Toolchain: qualityToolchainJSON{Language: "node-typescript"}}
+		if findings := verifier.verifyToolchainDirective(seam); len(findings) != 0 {
 			t.Fatalf("findings = %v", findings)
 		}
 	})
@@ -74,7 +89,7 @@ func TestVerifyToolchain(t *testing.T) {
 		verifier := Verifier{
 			ReadTenant: func(path string) ([]byte, error) { return nil, errors.New("boom") },
 		}
-		findings := verifier.verifyToolchain()
+		findings := verifier.verifyToolchainDirective(goSeam)
 		if len(findings) != 1 || !strings.Contains(findings[0].Detail, "boom") {
 			t.Fatalf("findings = %v", findings)
 		}
@@ -84,7 +99,7 @@ func TestVerifyToolchain(t *testing.T) {
 		verifier := Verifier{
 			ReadTenant: func(path string) ([]byte, error) { return []byte("module example.com/tenant\n"), nil },
 		}
-		findings := verifier.verifyToolchain()
+		findings := verifier.verifyToolchainDirective(goSeam)
 		if len(findings) != 1 || !strings.Contains(findings[0].Detail, "no toolchain directive") {
 			t.Fatalf("findings = %v", findings)
 		}

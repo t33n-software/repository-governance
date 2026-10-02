@@ -41,29 +41,35 @@ func main() {
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	root := "."
 	home := ""
+	territory := ""
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
 		switch {
 		case arg == "--version":
 			fmt.Fprintf(stdout, "verify-canonical %s\n", version)
 			return 0
-		case arg == "--repo" || arg == "--home":
+		case arg == "--repo" || arg == "--home" || arg == "--territory-home":
 			value, ok := flagValue(args, &index)
 			if !ok {
-				fmt.Fprintf(stderr, "usage: verify-canonical [--repo <path>] [--home <path>] [--version]\n")
+				fmt.Fprintf(stderr, "usage: verify-canonical [--repo <path>] [--home <path>] [--territory-home <path>] [--version]\n")
 				return 2
 			}
-			if arg == "--repo" {
+			switch arg {
+			case "--repo":
 				root = value
-			} else {
+			case "--home":
 				home = value
+			default:
+				territory = value
 			}
 		case strings.HasPrefix(arg, "--repo="):
 			root = strings.TrimPrefix(arg, "--repo=")
 		case strings.HasPrefix(arg, "--home="):
 			home = strings.TrimPrefix(arg, "--home=")
+		case strings.HasPrefix(arg, "--territory-home="):
+			territory = strings.TrimPrefix(arg, "--territory-home=")
 		default:
-			fmt.Fprintf(stderr, "usage: verify-canonical [--repo <path>] [--home <path>] [--version]\n")
+			fmt.Fprintf(stderr, "usage: verify-canonical [--repo <path>] [--home <path>] [--territory-home <path>] [--version]\n")
 			return 2
 		}
 	}
@@ -78,8 +84,13 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "verify-canonical: %v\n", err)
 		return 1
 	}
+	territoryRoot, err := resolveTerritoryRoot(territory, bindings)
+	if err != nil {
+		fmt.Fprintf(stderr, "verify-canonical: %v\n", err)
+		return 1
+	}
 
-	verifier := newVerifier(root, homeRoot, stdout, stderr)
+	verifier := newVerifier(root, homeRoot, territoryRoot, stdout, stderr)
 	findings := verify(ctx, verifier, bindings)
 	if !verifier.Report(findings) {
 		return 1
@@ -121,6 +132,20 @@ func resolveHomeRoot(ctx context.Context, root, home string, bindings canonical.
 	}
 	toolsDir := filepath.Join(root, path.Dir(bindings.Tools.Module))
 	return resolveHome(ctx, toolsDir, "github.com/"+bindings.Home.Repository)
+}
+
+// resolveTerritoryRoot binds the territory tree: the explicit
+// --territory-home flag wins; a tenant that binds a toolchain section
+// without the flag is a fail-closed resolution error, because the config
+// topics would otherwise claim proofs no seam carries.
+func resolveTerritoryRoot(territory string, bindings canonical.Bindings) (string, error) {
+	if territory != "" {
+		return territory, nil
+	}
+	if bindings.Toolchain != nil {
+		return "", fmt.Errorf("the binding manifest binds a toolchain section; pass --territory-home <path>")
+	}
+	return "", nil
 }
 
 // verifyTenant is the default verification seam.

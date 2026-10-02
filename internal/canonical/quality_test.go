@@ -1,7 +1,6 @@
 package canonical
 
 import (
-	"errors"
 	"io/fs"
 	"strings"
 	"testing"
@@ -95,17 +94,19 @@ func TestDecodeQualityConfigExtendsRejection(t *testing.T) {
 	}
 }
 
-func TestVerifyQuality(t *testing.T) {
-	bindings := Bindings{Quality: QualityBinding{Config: "git-governance.quality.json", SchemaVersion: 4}}
-
+func TestReadQualitySeam(t *testing.T) {
 	t.Run("pass", func(t *testing.T) {
 		verifier := Verifier{
 			ReadTenant: func(path string) ([]byte, error) {
 				return []byte(`{"schemaVersion":4,"toolchain":{"language":"go","version":"1.26.6"},"gates":[{"name":"a","command":"go"}]}`), nil
 			},
 		}
-		if findings := verifier.verifyQuality(bindings); len(findings) != 0 {
+		seam, findings := verifier.readQualitySeam(Bindings{Quality: QualityBinding{Config: "git-governance.quality.json", SchemaVersion: 4}})
+		if len(findings) != 0 {
 			t.Fatalf("findings = %v", findings)
+		}
+		if seam.Toolchain.Language != "go" {
+			t.Fatalf("seam = %+v", seam)
 		}
 	})
 
@@ -113,7 +114,7 @@ func TestVerifyQuality(t *testing.T) {
 		verifier := Verifier{
 			ReadTenant: func(path string) ([]byte, error) { return nil, fs.ErrNotExist },
 		}
-		findings := verifier.verifyQuality(bindings)
+		_, findings := verifier.readQualitySeam(Bindings{Quality: QualityBinding{Config: "git-governance.quality.json", SchemaVersion: 4}})
 		if len(findings) != 1 || !strings.Contains(findings[0].Detail, "read") {
 			t.Fatalf("findings = %v", findings)
 		}
@@ -123,30 +124,28 @@ func TestVerifyQuality(t *testing.T) {
 		verifier := Verifier{
 			ReadTenant: func(path string) ([]byte, error) { return []byte(`not json`), nil },
 		}
-		findings := verifier.verifyQuality(bindings)
+		_, findings := verifier.readQualitySeam(Bindings{Quality: QualityBinding{Config: "git-governance.quality.json", SchemaVersion: 4}})
 		if len(findings) != 1 {
-			t.Fatalf("findings = %v", findings)
-		}
-	})
-
-	t.Run("version mismatch", func(t *testing.T) {
-		verifier := Verifier{
-			ReadTenant: func(path string) ([]byte, error) { return []byte(`{"schemaVersion":2}`), nil },
-		}
-		findings := verifier.verifyQuality(bindings)
-		if len(findings) != 1 || !strings.Contains(findings[0].Detail, "schemaVersion 2") {
 			t.Fatalf("findings = %v", findings)
 		}
 	})
 }
 
-func TestVerifyQualityReadErrorPropagates(t *testing.T) {
-	boom := errors.New("boom")
-	verifier := Verifier{
-		ReadTenant: func(path string) ([]byte, error) { return nil, boom },
-	}
-	findings := verifier.verifyQuality(Bindings{Quality: QualityBinding{Config: "config.json", SchemaVersion: 4}})
-	if len(findings) != 1 || !strings.Contains(findings[0].Detail, "boom") {
-		t.Fatalf("findings = %v", findings)
-	}
+func TestVerifyQuality(t *testing.T) {
+	t.Run("version match", func(t *testing.T) {
+		verifier := Verifier{}
+		seam := qualityConfigDocument{SchemaVersion: 4}
+		if findings := verifier.verifyQuality(seam, Bindings{Quality: QualityBinding{Config: "git-governance.quality.json", SchemaVersion: 4}}); len(findings) != 0 {
+			t.Fatalf("findings = %v", findings)
+		}
+	})
+
+	t.Run("version mismatch", func(t *testing.T) {
+		verifier := Verifier{}
+		seam := qualityConfigDocument{SchemaVersion: 2}
+		findings := verifier.verifyQuality(seam, Bindings{Quality: QualityBinding{Config: "git-governance.quality.json", SchemaVersion: 4}})
+		if len(findings) != 1 || !strings.Contains(findings[0].Detail, "schemaVersion 2") {
+			t.Fatalf("findings = %v", findings)
+		}
+	})
 }

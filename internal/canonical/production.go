@@ -12,8 +12,9 @@ import (
 )
 
 // NewVerifier binds the production seams of a Verifier: os-backed file reads
-// rooted at the tenant and home trees and the Go toolchain module resolution.
-func NewVerifier(tenantRoot, homeRoot string, stdout, stderr io.Writer) Verifier {
+// rooted at the tenant, home, and territory trees and the Go toolchain
+// module resolution.
+func NewVerifier(tenantRoot, homeRoot, territoryRoot string, stdout, stderr io.Writer) Verifier {
 	if stdout == nil {
 		stdout = os.Stdout
 	}
@@ -27,6 +28,9 @@ func NewVerifier(tenantRoot, homeRoot string, stdout, stderr io.Writer) Verifier
 		},
 		ReadHome: func(path string) ([]byte, error) {
 			return os.ReadFile(filepath.Join(homeRoot, filepath.FromSlash(path)))
+		},
+		ReadTerritory: func(path string) ([]byte, error) {
+			return os.ReadFile(filepath.Join(territoryRoot, filepath.FromSlash(path)))
 		},
 		ReadModule: func(dir, path string) ([]byte, error) {
 			return os.ReadFile(filepath.Join(dir, filepath.FromSlash(path)))
