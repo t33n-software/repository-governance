@@ -12,14 +12,18 @@ import (
 func TestNewVerifierProductionSeams(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
+	territory := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "tenant.txt"), []byte("tenant"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(home, "home.txt"), []byte("home"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(territory, "territory.txt"), []byte("territory"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 
-	verifier := NewVerifier(root, home, nil, nil)
+	verifier := NewVerifier(root, home, territory, nil, nil)
 	if verifier.Stdout == nil || verifier.Stderr == nil {
 		t.Fatal("the default writers must be bound")
 	}
@@ -36,6 +40,13 @@ func TestNewVerifierProductionSeams(t *testing.T) {
 	}
 	if string(homeContent) != "home" {
 		t.Fatalf("home = %q", homeContent)
+	}
+	territoryContent, err := verifier.ReadTerritory("territory.txt")
+	if err != nil {
+		t.Fatalf("ReadTerritory: %v", err)
+	}
+	if string(territoryContent) != "territory" {
+		t.Fatalf("territory = %q", territoryContent)
 	}
 	module, err := verifier.ReadModule(root, "tenant.txt")
 	if err != nil {

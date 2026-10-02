@@ -1,9 +1,6 @@
 # Self-sufficient module resolution
 
 **Status:** binding convention of the repository-governance home.
-**Contract:** `REPOSITORY_GOVERNANCE_HOME_CONTRACT_001` section 7 binds the
-environment guarantee of the conformance verifier; this document binds the
-mechanism.
 
 ## Rule
 

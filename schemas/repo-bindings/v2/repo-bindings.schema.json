@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/t33n-software/repository-governance/main/schemas/repo-bindings/v2/repo-bindings.schema.json",
   "title": "Repository Bindings Manifest",
-  "description": "The canonical tenant binding manifest (repo-bindings.json). It records the home pin, the fleet classes, the bound callers with their hashes, the canonical file bindings — the gitignore topic as the ordered fragment list plus the hash of the rendered governed region —, the CODEOWNERS render values, the optional conventions README render values, the config-seam pin, and the tooling-module pin. The schema is owned by the repository-governance home, strictly decoded, and proven by conformance vectors.",
+  "description": "The canonical tenant binding manifest (repo-bindings.json). It records the home pin, the fleet classes, the bound callers with their hashes, the canonical file bindings — the gitignore topic as the ordered fragment list plus the hash of the rendered governed region —, the CODEOWNERS render values, the optional conventions README render values, the config-seam pin, the tooling-module pin, and the optional territory config-topic binding. The schema is owned by the repository-governance home, strictly decoded, and proven by conformance vectors.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "home", "class", "callers", "files", "codeowners", "quality", "tools"],
@@ -131,6 +131,86 @@
           "description": "The pinned canonical tool-catalog version."
         }
       }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["territory", "registry", "category", "artifacts", "pnpmWorkspace"],
+      "properties": {
+        "territory": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "sha"],
+          "properties": {
+            "repository": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]+/[a-z0-9-]+$",
+              "description": "The territory repository coordinate (owner/repository)."
+            },
+            "sha": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$",
+              "description": "The bound territory commit SHA — the trust anchor."
+            }
+          }
+        },
+        "registry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "The hash of the pinned category registry instance."
+            }
+          }
+        },
+        "category": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*){0,2}$",
+          "description": "The declared category: the hierarchical path whose form equals the territory folder path."
+        },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["family", "path", "sha256"],
+            "properties": {
+              "family": {
+                "type": "string",
+                "enum": ["tsconfig", "vitest", "tsdown"],
+                "description": "The byte-identity config family of the artifact."
+              },
+              "path": { "type": "string", "minLength": 1 },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$",
+                "description": "The hash proven against both the tenant file and the pinned territory artifact."
+              }
+            }
+          }
+        },
+        "pnpmWorkspace": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 }
+          }
+        },
+        "sourceRoots": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "The declared source roots the delivery lane's include must cover."
+        }
+      },
+      "description": "The optional territory config-topic binding; an absent section skips the category proofs."
     }
   },
   "$defs": {

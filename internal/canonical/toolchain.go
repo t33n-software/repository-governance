@@ -40,12 +40,17 @@ func ToolchainDirective(contents []byte) (string, error) {
 	return "", errors.New("the go.mod declaration carries no toolchain directive")
 }
 
-// verifyToolchain proves the tenant's Go module declaration carries an
-// explicit, well-formed toolchain directive — the Go-native selector the
-// payloads resolve fail-closed and install exactly. The version cross-check
-// against the configuration seam's toolchain version is owned by the quality
-// gate at runtime.
-func (v Verifier) verifyToolchain() []Finding {
+// verifyToolchainDirective proves the tenant's Go module declaration carries
+// an explicit, well-formed toolchain directive — the Go-native selector the
+// payloads resolve fail-closed and install exactly. The proof is the Go
+// territory's native selector; a tenant whose seam declares another language
+// skips it, because that language's territory category binding governs its
+// toolchain proofs instead. The version cross-check against the seam's
+// toolchain version is owned by the quality gate at runtime.
+func (v Verifier) verifyToolchainDirective(seam qualityConfigDocument) []Finding {
+	if seam.Toolchain.Language != "go" {
+		return nil
+	}
 	check := "toolchain directive"
 	contents, err := v.ReadTenant("go.mod")
 	if err != nil {

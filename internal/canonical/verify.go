@@ -23,6 +23,10 @@ type Verifier struct {
 	ReadTenant func(path string) ([]byte, error)
 	// ReadHome reads a home file by its home-relative slash path.
 	ReadHome func(path string) ([]byte, error)
+	// ReadTerritory reads a territory file by its territory-relative slash
+	// path; the territory carries the pinned config artifacts of the
+	// tenant's language.
+	ReadTerritory func(path string) ([]byte, error)
 	// ReadModule reads a file inside a resolved module directory.
 	ReadModule func(dir, path string) ([]byte, error)
 	// ListTenant lists the directory entries of a tenant directory by its
@@ -44,22 +48,41 @@ type Verifier struct {
 
 // Verify runs every bound proof family and returns the collected findings. An
 // empty result is the only pass; missing or diverging evidence is a finding,
-// never a pass.
+// never a pass. The configuration seam is read and decoded once per run and
+// shared with every consuming proof.
 func (v Verifier) Verify(ctx context.Context, bindings Bindings) []Finding {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	findings := make([]Finding, 0)
+	seam, seamFindings := v.readQualitySeam(bindings)
+	findings = append(findings, seamFindings...)
 	findings = append(findings, v.verifyCallers(bindings)...)
 	findings = append(findings, v.verifyFiles(bindings)...)
 	findings = append(findings, v.verifyCodeowners(bindings)...)
 	findings = append(findings, v.verifyConventions(bindings)...)
-	findings = append(findings, v.verifyQuality(bindings)...)
+	findings = append(findings, v.verifyQuality(seam, bindings)...)
 	findings = append(findings, v.verifyExtends(ctx, bindings)...)
-	findings = append(findings, v.verifyToolchain()...)
+	findings = append(findings, v.verifyToolchainDirective(seam)...)
 	findings = append(findings, v.verifyTools(ctx, bindings)...)
 	findings = append(findings, v.verifyLicense(ctx, bindings)...)
+	findings = append(findings, v.verifyToolchainConfig(bindings, seam)...)
 	return findings
+}
+
+// readQualitySeam reads and strictly decodes the tenant's configuration seam
+// once per verification run; every consuming proof shares the decoded
+// document. A read or decode failure is a finding, never a panic.
+func (v Verifier) readQualitySeam(bindings Bindings) (qualityConfigDocument, []Finding) {
+	contents, err := v.ReadTenant(bindings.Quality.Config)
+	if err != nil {
+		return qualityConfigDocument{}, []Finding{readErrorFinding("quality config", bindings.Quality.Config, err)}
+	}
+	document, err := decodeQualityConfig(contents)
+	if err != nil {
+		return qualityConfigDocument{}, []Finding{mismatchFinding("quality config", err.Error())}
+	}
+	return document, nil
 }
 
 // Report writes the per-check outcome and returns whether the verification

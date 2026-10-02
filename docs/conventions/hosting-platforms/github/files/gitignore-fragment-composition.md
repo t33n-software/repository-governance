@@ -3,11 +3,7 @@
 This document is the **mechanism** surface of the canonical file family's
 gitignore topic: how the governed region is rendered, how the conformance
 verifier proves it, how the binding manifest records it, and how changes roll
-out. The **rule** — the layering model, the admission rules, the rationale
-registry, the secret-artifact boundary, and the license-family protection —
-is owned by the knowledge plane
-(`REPOSITORY_GOVERNANCE_CANONICAL_FILES_CONVENTION_REFERENCE_001`) and is
-re-referenced here, never restated.
+out.
 
 ## The fragment tree
 

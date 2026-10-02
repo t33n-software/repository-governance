@@ -24,10 +24,13 @@ type qualityConfigDocument struct {
 }
 
 // qualityToolchainJSON is the language-keyed toolchain identity of the v4
-// seam: one form serves every language territory without a schema fork.
+// seam: one form serves every language territory without a schema fork. The
+// category is the additive, optional toolchain-config declaration of the
+// territory registries; its absence declares no category.
 type qualityToolchainJSON struct {
 	Language string `json:"language"`
 	Version  string `json:"version"`
+	Category string `json:"category,omitempty"`
 }
 
 type qualityScopeJSON struct {
@@ -103,21 +106,26 @@ func DecodeQualityConfigExtends(contents []byte) ([]string, error) {
 	return document.Extends, nil
 }
 
+// DecodeQualityConfigCategory strictly decodes the tenant's configuration
+// seam and returns its declared toolchain-config category; an empty result
+// declares no category.
+func DecodeQualityConfigCategory(contents []byte) (string, error) {
+	document, err := decodeQualityConfig(contents)
+	if err != nil {
+		return "", err
+	}
+	return document.Toolchain.Category, nil
+}
+
 // verifyQuality proves the tenant's configuration seam strictly decodes and
-// carries the pinned schema version.
-func (v Verifier) verifyQuality(bindings Bindings) []Finding {
+// carries the pinned schema version. The seam is read and decoded once per
+// verification run through readQualitySeam; this proof consumes the decoded
+// document.
+func (v Verifier) verifyQuality(seam qualityConfigDocument, bindings Bindings) []Finding {
 	check := "quality config"
-	contents, err := v.ReadTenant(bindings.Quality.Config)
-	if err != nil {
-		return []Finding{readErrorFinding(check, bindings.Quality.Config, err)}
-	}
-	version, err := DecodeQualityConfigVersion(contents)
-	if err != nil {
-		return []Finding{mismatchFinding(check, err.Error())}
-	}
-	if version != bindings.Quality.SchemaVersion {
+	if seam.SchemaVersion != bindings.Quality.SchemaVersion {
 		return []Finding{mismatchFinding(check,
-			fmt.Sprintf("the configuration seam declares schemaVersion %d, but the binding pins %d", version, bindings.Quality.SchemaVersion))}
+			fmt.Sprintf("the configuration seam declares schemaVersion %d, but the binding pins %d", seam.SchemaVersion, bindings.Quality.SchemaVersion))}
 	}
 	return nil
 }
