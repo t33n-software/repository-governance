@@ -33,18 +33,23 @@ carries no selection flags.
 | `.gitignore` | the governed region rendered from the bound fragment list at the bound home pin, with the tenant's free project block preserved below the mark; unmarked existing content is never overwritten |
 | `.github/CODEOWNERS` | the render of the canonical template with the manifest's owner values |
 | The rule-sets conventions README | the render of the canonical template where the manifest binds the family |
+| The toolchain config artifacts | where the manifest binds the toolchain section: byte-identical copies of the pinned territory artifacts (`configs/<family>/<category-id>/<base>`), each hash-proven against the bound hash before the write; the territory tree resolution mirrors the verifier's — the explicit `--territory-home` flag wins, a bound toolchain section without the flag fails closed |
+| The pnpm workspace document | where the toolchain section is bound: the composed re-render whose governed keys carry the exact fortress-baseline values of the pinned territory and whose tenant keys — the catalog above all — are preserved; a fresh tenant receives the baseline with an empty catalog |
 
 Tenant-authored data is never written: the binding manifest, the config
 seam, the tooling module, and the license family (owned by the license-hub
-CLI) stay the tenant's reviewable inputs.
+CLI) stay the tenant's reviewable inputs. The composed pnpm workspace
+re-render preserves the tenant's mapping keys, not comment formatting; the
+surface's proof form is the policy invariants, never a byte identity.
 
 ## Provisioning versus verification
 
 The provisioning CLI never re-implements a proof the verifier owns: every
 copied and rendered byte is proven against the manifest's recorded hashes
 before any write, and a provisioned tenant passes the conformance verifier
-byte for byte — the identity is proven by the contract test
-`TestProvisionedTenantPassesTheConformanceVerifier` in `internal/packaging`.
-CI never provisions: the required check proves, the tenant provisions
-locally at onboarding or re-binding; the write exposure and the verify
-exposure share the render core and never fork it.
+byte for byte — the identity is proven by the contract tests
+`TestProvisionedTenantPassesTheConformanceVerifier` and
+`TestProvisionedToolchainTenantPassesTheConformanceVerifier` in
+`internal/packaging`. CI never provisions: the required check proves, the
+tenant provisions locally at onboarding or re-binding; the write exposure
+and the verify exposure share the render core and never fork it.
