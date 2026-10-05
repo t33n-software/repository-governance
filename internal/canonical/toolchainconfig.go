@@ -111,7 +111,7 @@ func (v Verifier) verifyToolchainConfig(bindings Bindings, seam qualityConfigDoc
 			fmt.Sprintf("the toolchain section binds the node-typescript territory's config families, but the config seam declares the language %q", seam.Toolchain.Language))}
 	}
 
-	instance, err := v.pinnedCategoryRegistry(toolchain.Registry)
+	instance, err := pinnedCategoryRegistry(v.ReadTerritory, toolchain.Registry)
 	if err != nil {
 		return []Finding{mismatchFinding(check, err.Error())}
 	}
@@ -128,12 +128,14 @@ func (v Verifier) verifyToolchainConfig(bindings Bindings, seam qualityConfigDoc
 	return findings
 }
 
-// pinnedCategoryRegistry reads and proves the pinned registry instance: the
-// territory file's content hash must equal the bound hash, and the decode
-// must carry a schema version and at least one category.
-func (v Verifier) pinnedCategoryRegistry(pin RegistryPin) (categoryRegistryInstance, error) {
+// pinnedCategoryRegistry reads and proves the pinned registry instance
+// through the provided territory read seam: the territory file's content
+// hash must equal the bound hash, and the decode must carry a schema version
+// and at least one category. The verifier and the provisioner share this
+// proof so the pinned-registry semantics exist exactly once.
+func pinnedCategoryRegistry(read func(path string) ([]byte, error), pin RegistryPin) (categoryRegistryInstance, error) {
 	var instance categoryRegistryInstance
-	contents, err := v.ReadTerritory(pin.Path)
+	contents, err := read(pin.Path)
 	if err != nil {
 		return instance, fmt.Errorf("read the pinned registry %s: %w", pin.Path, err)
 	}

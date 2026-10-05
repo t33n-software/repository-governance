@@ -20,7 +20,7 @@ conformance verifier (`cmd/verify-canonical`) — the proof of carrying.
 | Canonical callers | `hosting-platforms/github/workflows/callers/go/` | The thin, hash-pinned tenant adoption shape |
 | Canonical files | `hosting-platforms/github/files/` | The class-C content family (byte-identical or rendered) |
 | Conformance verifier | `cmd/verify-canonical/` | The fail-closed proof-of-carrying engine |
-| Provisioning CLI | `cmd/provision-canonical/` | The write exposure of the render core — provisions a tenant's canonical surfaces from the binding manifest |
+| Provisioning CLI | `cmd/provision-canonical/` | The write exposure of the render core — provisions a tenant's canonical surfaces and the territory config artifacts of a bound toolchain section from the binding manifest |
 | Verifier schemas | `schemas/{repo-bindings,caller-hashes}/v1/` | The versioned binding-manifest and hash-record contracts |
 | Conformance vectors | `conformance/{positive,negative}/` | The proof set for the binding-manifest decoder |
 
@@ -31,8 +31,10 @@ reference the payloads by full-length commit SHA, the canonical files, the
 tool pins (`tools/go.mod`), the schema-validated configuration seam
 (`git-governance.quality.json`), and the binding manifest
 (`repo-bindings.json`) — never copied logic. The provisioning CLI
-(`cmd/provision-canonical`) renders and writes those canonical surfaces from
-the binding manifest; the selection stays reviewable, versioned manifest
+(`cmd/provision-canonical`) renders and writes those canonical surfaces —
+and, where the manifest binds the toolchain section, the pinned territory
+config artifacts and the composed pnpm workspace document — from the
+binding manifest; the selection stays reviewable, versioned manifest
 data, and the CLI carries no selection flags. The "Canonical conformance"
 check proves the bindings fail-closed on every pull request.
 

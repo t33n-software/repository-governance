@@ -4,11 +4,13 @@
 // repo-bindings.json, resolves the pinned home tree, renders every bound
 // tenant surface — the byte-identical callers and canonical files, the
 // composed gitignore governed region with the preserved project block, the
-// materialized CODEOWNERS, and the conventions README where bound — proves
-// every copied master and rendered region against the manifest's recorded
-// hashes fail-closed, and writes the proven materializations. The selection
-// is reviewable, versioned manifest data; the CLI carries no selection
-// flags.
+// materialized CODEOWNERS, the conventions README where bound, and, where
+// the manifest binds the toolchain section, the pinned territory config
+// artifacts and the composed pnpm workspace document — proves every copied
+// master, territory artifact, and rendered region against the manifest's
+// recorded hashes fail-closed, and writes the proven materializations. The
+// selection is reviewable, versioned manifest data; the CLI carries no
+// selection flags.
 package main
 
 import (
@@ -49,6 +51,7 @@ func main() {
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	root := "."
 	home := ""
+	territory := ""
 	dryRun := false
 	confirm := false
 	for index := 0; index < len(args); index++ {
@@ -61,23 +64,28 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 			dryRun = true
 		case arg == "--yes":
 			confirm = true
-		case arg == "--repo" || arg == "--home":
+		case arg == "--repo" || arg == "--home" || arg == "--territory-home":
 			value, ok := flagValue(args, &index)
 			if !ok {
-				fmt.Fprintf(stderr, "usage: provision-canonical [--repo <path>] [--home <path>] [--dry-run] [--yes] [--version]\n")
+				fmt.Fprintf(stderr, "usage: provision-canonical [--repo <path>] [--home <path>] [--territory-home <path>] [--dry-run] [--yes] [--version]\n")
 				return 2
 			}
-			if arg == "--repo" {
+			switch arg {
+			case "--repo":
 				root = value
-			} else {
+			case "--home":
 				home = value
+			default:
+				territory = value
 			}
 		case strings.HasPrefix(arg, "--repo="):
 			root = strings.TrimPrefix(arg, "--repo=")
 		case strings.HasPrefix(arg, "--home="):
 			home = strings.TrimPrefix(arg, "--home=")
+		case strings.HasPrefix(arg, "--territory-home="):
+			territory = strings.TrimPrefix(arg, "--territory-home=")
 		default:
-			fmt.Fprintf(stderr, "usage: provision-canonical [--repo <path>] [--home <path>] [--dry-run] [--yes] [--version]\n")
+			fmt.Fprintf(stderr, "usage: provision-canonical [--repo <path>] [--home <path>] [--territory-home <path>] [--dry-run] [--yes] [--version]\n")
 			return 2
 		}
 	}
@@ -92,8 +100,13 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "provision-canonical: %v\n", err)
 		return 1
 	}
+	territoryRoot, err := resolveTerritoryRoot(territory, bindings)
+	if err != nil {
+		fmt.Fprintf(stderr, "provision-canonical: %v\n", err)
+		return 1
+	}
 
-	provisioner := newProvisioner(root, homeRoot)
+	provisioner := newProvisioner(root, homeRoot, territoryRoot)
 
 	if dryRun {
 		materials, err := planTenant(provisioner, bindings)
@@ -180,6 +193,21 @@ func resolveHomeRoot(ctx context.Context, root, home string, bindings canonical.
 	}
 	toolsDir := filepath.Join(root, path.Dir(bindings.Tools.Module))
 	return resolveHome(ctx, toolsDir, "github.com/"+bindings.Home.Repository)
+}
+
+// resolveTerritoryRoot binds the territory tree: the explicit
+// --territory-home flag wins; a tenant that binds a toolchain section
+// without the flag is a fail-closed resolution error, because the config
+// topics would otherwise claim writes no seam carries. The semantics mirror
+// the verifier's resolveTerritoryRoot exactly.
+func resolveTerritoryRoot(territory string, bindings canonical.Bindings) (string, error) {
+	if territory != "" {
+		return territory, nil
+	}
+	if bindings.Toolchain != nil {
+		return "", fmt.Errorf("the binding manifest binds a toolchain section; pass --territory-home <path>")
+	}
+	return "", nil
 }
 
 // planTenantMaterials is the default planning seam.

@@ -77,7 +77,17 @@ On a tenant pull request it proves, fail-closed:
    conventions README is the exact materialization of the canonical
    value-free template with the manifest's values (organization, repository,
    rationale) and the class-derived platform sentence; a class without a
-   canonical render fails closed.
+   canonical render fails closed;
+9. where the manifest binds the toolchain section, the category binding
+   passes the fail-closed proofs of the pinned territory registry: the
+   pinned registry instance matches the bound hash and carries the declared
+   category, every byte-identity config artifact matches the bound hash
+   against both the tenant file and the pinned territory artifact with the
+   registry mapping equal to the derived category folder, the delivery-lane
+   leaf carries the category's lane invariants and covers every declared
+   source root, and the pnpm workspace document carries every governed key
+   of the territory's fortress baseline with an existing catalog key (the
+   binding form: `docs/conventions/verification/repo-bindings-manifest-form.md`).
 
 The tenant's binding manifest (`repo-bindings.json`) is strictly decoded
 against `schemas/repo-bindings/v2/repo-bindings.schema.json`; the home's
@@ -97,17 +107,29 @@ tree (the explicit `--home` flag wins; without it, the home module is
 resolved through the tenant's integrity-pinned tooling module), renders
 every bound surface — the byte-identical callers and canonical files, the
 composed gitignore governed region with the preserved project block, the
-materialized CODEOWNERS, and the conventions README where the manifest binds
-the family — proves every copied master and rendered region against the
-manifest's recorded hashes fail-closed before any write, and writes the
-proven materializations. The selection is reviewable, versioned manifest
-data; the CLI carries no selection flags. `--dry-run` previews the plan; the
-mutation requires `--yes` in a non-interactive context or an explicit
-confirmation on a terminal. A provisioned tenant passes the conformance
-verifier byte for byte — the identity of the two exposures is proven by the
-contract test `TestProvisionedTenantPassesTheConformanceVerifier`. CI never
-provisions: the required check proves, the tenant provisions locally at
-onboarding.
+materialized CODEOWNERS, the conventions README where the manifest binds the
+family, and, where the manifest binds the toolchain section, the
+byte-identity territory config artifacts and the composed pnpm workspace
+document — proves every copied master, territory artifact, and rendered
+region against the manifest's recorded hashes fail-closed before any write,
+and writes the proven materializations. The territory config artifacts are
+copied from the pinned territory tree: the shared pinned-registry proof
+resolves the category's artifact mapping, and the territory artifact's hash
+must equal the bound hash before the write. The composed pnpm workspace
+document carries every governed key of the territory's fortress baseline
+with the exact baseline value and preserves the tenant's own mapping keys —
+the catalog above all; a fresh tenant receives the baseline with an empty
+catalog. The territory tree resolution mirrors the verifier's: the explicit
+`--territory-home` flag wins; a tenant that binds a toolchain section
+without the flag fails closed. The selection is reviewable, versioned
+manifest data; the CLI carries no selection flags. `--dry-run` previews the
+plan; the mutation requires `--yes` in a non-interactive context or an
+explicit confirmation on a terminal. A provisioned tenant passes the
+conformance verifier byte for byte — the identity of the two exposures is
+proven by the contract tests `TestProvisionedTenantPassesTheConformanceVerifier`
+and `TestProvisionedToolchainTenantPassesTheConformanceVerifier` (including
+the category proofs). CI never provisions: the required check proves, the
+tenant provisions locally at onboarding.
 
 ## The contract-test set
 

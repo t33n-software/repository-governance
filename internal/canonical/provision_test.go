@@ -12,12 +12,14 @@ import (
 
 // provisionFixture binds the seams for the provisioning tests.
 type provisionFixture struct {
-	homeContents   map[string][]byte
-	tenantContents map[string][]byte
-	written        map[string][]byte
-	writeErr       error
-	homeErr        error
-	tenantErr      error
+	homeContents      map[string][]byte
+	territoryContents map[string][]byte
+	tenantContents    map[string][]byte
+	written           map[string][]byte
+	writeErr          error
+	homeErr           error
+	territoryErr      error
+	tenantErr         error
 }
 
 // provisioner binds the fixture's seams; a tenant file that does not exist
@@ -31,6 +33,16 @@ func (fixture *provisionFixture) provisioner() Provisioner {
 			contents, found := fixture.homeContents[path]
 			if !found {
 				return nil, errors.New("no such home file: " + path)
+			}
+			return contents, nil
+		},
+		ReadTerritory: func(path string) ([]byte, error) {
+			if fixture.territoryErr != nil {
+				return nil, fixture.territoryErr
+			}
+			contents, found := fixture.territoryContents[path]
+			if !found {
+				return nil, errors.New("no such territory file: " + path)
 			}
 			return contents, nil
 		},
@@ -392,7 +404,7 @@ func TestNewProvisionerReportsAnUnwritableParent(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(tenant, ".github"), []byte("file"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, err := NewProvisioner(tenant, home).Apply(provisionTestBindings(t, nil))
+	_, err := NewProvisioner(tenant, home, t.TempDir()).Apply(provisionTestBindings(t, nil))
 	if err == nil || !strings.Contains(err.Error(), "write .github/workflows/ci.yml") {
 		t.Fatalf("err = %v", err)
 	}
@@ -400,6 +412,7 @@ func TestNewProvisionerReportsAnUnwritableParent(t *testing.T) {
 
 func TestNewProvisionerBindsProductionSeams(t *testing.T) {
 	home := t.TempDir()
+	territory := t.TempDir()
 	tenant := t.TempDir()
 	for path, contents := range passingProvisionFixture(t).homeContents {
 		target := filepath.Join(home, filepath.FromSlash(path))
@@ -410,12 +423,23 @@ func TestNewProvisionerBindsProductionSeams(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	for path, contents := range territoryFixtureContents() {
+		target := filepath.Join(territory, filepath.FromSlash(path))
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(target, contents, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
 
-	materials, err := NewProvisioner(tenant, home).Apply(provisionTestBindings(t, nil))
+	bindings := provisionTestBindings(t, nil)
+	bindings.Toolchain = provisionTestToolchain(t)
+	materials, err := NewProvisioner(tenant, home, territory).Apply(bindings)
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
-	if len(materials) != 6 {
+	if len(materials) != 10 {
 		t.Fatalf("materials = %d", len(materials))
 	}
 
@@ -426,5 +450,303 @@ func TestNewProvisionerBindsProductionSeams(t *testing.T) {
 	}
 	if written, err := os.ReadFile(filepath.Join(tenant, ".gitignore")); err != nil || !strings.HasPrefix(string(written), "# canonical: gitignore") {
 		t.Fatalf("the gitignore was not written: %v", err)
+	}
+	// The territory artifact proves the territory read seam is production-bound.
+	want := string(territoryFixtureContents()["configs/tsconfig/"+toolchainCategory+"/tsconfig.node.json"])
+	artifact, err := os.ReadFile(filepath.Join(tenant, "tsconfig.node.json"))
+	if err != nil || string(artifact) != want {
+		t.Fatalf("the territory artifact was not written: %v", err)
+	}
+}
+
+// toolchainCategory is the fixture category the territory tree carries.
+const toolchainCategory = "single-project/direct-node"
+
+// territoryFixtureContents builds a territory tree whose pinned registry,
+// config artifacts, and pnpm baseline match provisionTestToolchain.
+func territoryFixtureContents() map[string][]byte {
+	registry := []byte(`{
+  "schemaVersion": 1,
+  "categories": [
+    {
+      "id": "single-project/direct-node",
+      "title": "Direct Node single project",
+      "artifacts": {
+        "tsconfig": "configs/tsconfig/single-project/direct-node/",
+        "vitest": "configs/vitest/single-project/direct-node/",
+        "tsdown": "configs/tsdown/single-project/direct-node/"
+      },
+      "proof": { "baseByteIdentity": true, "leafInvariants": [], "behaviorGate": [] }
+    }
+  ]
+}`)
+	return map[string][]byte{
+		"configs/registry.json": registry,
+		"configs/tsconfig/" + toolchainCategory + "/tsconfig.node.json": []byte("{\n  \"compilerOptions\": {\n    \"module\": \"Node20\",\n    \"moduleResolution\": \"Node16\",\n    \"noEmit\": false\n  },\n  \"include\": [\n    \"./src\"\n  ]\n}\n"),
+		"configs/vitest/" + toolchainCategory + "/vitest.config.ts":     []byte("export const vitest = 'fixture'\n"),
+		"configs/tsdown/" + toolchainCategory + "/tsdown.config.ts":     []byte("export const tsdown = 'fixture'\n"),
+		"configs/pnpm/pnpm-workspace.base.yaml":                         []byte("catalogMode: strict\n"),
+	}
+}
+
+// provisionTestToolchain builds the toolchain binding whose hashes match the
+// territory fixture tree.
+func provisionTestToolchain(t *testing.T) *ToolchainBindings {
+	t.Helper()
+	territory := territoryFixtureContents()
+	hash := func(path string) string {
+		return Sum256Hex(territory[path])
+	}
+	return &ToolchainBindings{
+		Territory: TerritoryPin{Repository: "t33n-software/go-quality-authority", SHA: testTerritorySHA},
+		Registry:  RegistryPin{Path: "configs/registry.json", SHA256: hash("configs/registry.json")},
+		Category:  toolchainCategory,
+		Artifacts: []ArtifactBinding{
+			{Family: "tsconfig", Path: "tsconfig.node.json", SHA256: hash("configs/tsconfig/" + toolchainCategory + "/tsconfig.node.json")},
+			{Family: "vitest", Path: "vitest.config.ts", SHA256: hash("configs/vitest/" + toolchainCategory + "/vitest.config.ts")},
+			{Family: "tsdown", Path: "tsdown.config.ts", SHA256: hash("configs/tsdown/" + toolchainCategory + "/tsdown.config.ts")},
+		},
+		PnpmWorkspace: PnpmWorkspaceBinding{Path: "pnpm-workspace.yaml"},
+		SourceRoots:   []string{"src"},
+	}
+}
+
+// provisionToolchainBindings extends the passing binding set with the
+// toolchain binding.
+func provisionToolchainBindings(t *testing.T) Bindings {
+	t.Helper()
+	bindings := provisionTestBindings(t, nil)
+	bindings.Toolchain = provisionTestToolchain(t)
+	return bindings
+}
+
+func TestPlanToolchainArtifacts(t *testing.T) {
+	t.Run("materializes the pinned territory artifacts", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		materials, err := fixture.provisioner().Plan(provisionToolchainBindings(t))
+		if err != nil {
+			t.Fatalf("Plan: %v", err)
+		}
+		territory := territoryFixtureContents()
+		for _, artifact := range []struct{ path, source string }{
+			{"tsconfig.node.json", "territory configs/tsconfig/single-project/direct-node/tsconfig.node.json"},
+			{"vitest.config.ts", "territory configs/vitest/single-project/direct-node/vitest.config.ts"},
+			{"tsdown.config.ts", "territory configs/tsdown/single-project/direct-node/tsdown.config.ts"},
+		} {
+			material := materialByPath(t, materials, artifact.path)
+			if want := string(territory[strings.TrimPrefix(artifact.source, "territory ")]); string(material.Contents) != want {
+				t.Fatalf("%s contents = %q, want the territory bytes %q", artifact.path, string(material.Contents), want)
+			}
+			if material.Source != artifact.source {
+				t.Fatalf("%s source = %q, want %q", artifact.path, material.Source, artifact.source)
+			}
+		}
+	})
+
+	t.Run("rejects an unreadable pinned registry", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		delete(fixture.territoryContents, "configs/registry.json")
+		_, err := fixture.provisioner().Plan(provisionToolchainBindings(t))
+		if err == nil || !strings.Contains(err.Error(), "read the pinned registry configs/registry.json") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("rejects a diverging pinned registry hash", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		bindings := provisionToolchainBindings(t)
+		bindings.Toolchain.Registry.SHA256 = strings.Repeat("0", 64)
+		_, err := fixture.provisioner().Plan(bindings)
+		if err == nil || !strings.Contains(err.Error(), "the pinned registry hash "+Sum256Hex(territoryFixtureContents()["configs/registry.json"])+" diverges from the bound hash") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("rejects an unregistered category", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		bindings := provisionToolchainBindings(t)
+		bindings.Toolchain.Category = "monorepo"
+		_, err := fixture.provisioner().Plan(bindings)
+		if err == nil || !strings.Contains(err.Error(), "carries no entry for the declared category") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("rejects a family without a registry mapping", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		bindings := provisionToolchainBindings(t)
+		bindings.Toolchain.Artifacts = append(bindings.Toolchain.Artifacts,
+			ArtifactBinding{Family: "eslint", Path: "eslint.config.js", SHA256: strings.Repeat("e", 64)})
+		_, err := fixture.provisioner().Plan(bindings)
+		if err == nil || !strings.Contains(err.Error(), `carries no artifact mapping for the family "eslint"`) {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("rejects a registry mapping that diverges from the category identity", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		// The registry maps the vitest family to the tsconfig folder while
+		// the category identity derives configs/vitest/<category>/.
+		diverged := []byte(`{
+  "schemaVersion": 1,
+  "categories": [
+    {
+      "id": "single-project/direct-node",
+      "title": "Direct Node single project",
+      "artifacts": {
+        "tsconfig": "configs/tsconfig/single-project/direct-node/",
+        "vitest": "configs/tsconfig/single-project/direct-node/",
+        "tsdown": "configs/tsdown/single-project/direct-node/"
+      },
+      "proof": { "baseByteIdentity": true, "leafInvariants": [], "behaviorGate": [] }
+    }
+  ]
+}`)
+		fixture.territoryContents = territoryFixtureContents()
+		fixture.territoryContents["configs/registry.json"] = diverged
+		bindings := provisionToolchainBindings(t)
+		bindings.Toolchain.Registry.SHA256 = Sum256Hex(diverged)
+		_, err := fixture.provisioner().Plan(bindings)
+		if err == nil || !strings.Contains(err.Error(), "but the category identity derives") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("rejects an unreadable territory artifact", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		delete(fixture.territoryContents, "configs/tsconfig/"+toolchainCategory+"/tsconfig.node.json")
+		_, err := fixture.provisioner().Plan(provisionToolchainBindings(t))
+		if err == nil || !strings.Contains(err.Error(), "read the territory tsconfig artifact") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("rejects a diverging territory artifact hash", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		fixture.territoryContents["configs/tsconfig/"+toolchainCategory+"/tsconfig.node.json"] = []byte("drifted")
+		_, err := fixture.provisioner().Plan(provisionToolchainBindings(t))
+		if err == nil || !strings.Contains(err.Error(), "not the bound") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+}
+
+func TestPlanPnpmWorkspace(t *testing.T) {
+	t.Run("provisions the baseline with an empty catalog for a fresh tenant", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		materials, err := fixture.provisioner().Plan(provisionToolchainBindings(t))
+		if err != nil {
+			t.Fatalf("Plan: %v", err)
+		}
+		material := materialByPath(t, materials, "pnpm-workspace.yaml")
+		if want := "catalog: {}\ncatalogMode: strict\n"; string(material.Contents) != want {
+			t.Fatalf("pnpm workspace = %q, want %q", string(material.Contents), want)
+		}
+		if material.Source != "compose configs/pnpm/pnpm-workspace.base.yaml" {
+			t.Fatalf("source = %q", material.Source)
+		}
+	})
+
+	t.Run("preserves the tenant keys and heals the governed keys", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		fixture.tenantContents = map[string][]byte{
+			"pnpm-workspace.yaml": []byte("catalog:\n  react: 19.0.0\ncatalogMode: loose\npackages:\n  - apps/*\n"),
+		}
+		materials, err := fixture.provisioner().Plan(provisionToolchainBindings(t))
+		if err != nil {
+			t.Fatalf("Plan: %v", err)
+		}
+		material := materialByPath(t, materials, "pnpm-workspace.yaml")
+		want := "catalog:\n    react: 19.0.0\ncatalogMode: strict\npackages:\n    - apps/*\n"
+		if string(material.Contents) != want {
+			t.Fatalf("pnpm workspace = %q, want %q", string(material.Contents), want)
+		}
+	})
+
+	t.Run("rejects an unparseable tenant document", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		fixture.tenantContents = map[string][]byte{
+			"pnpm-workspace.yaml": []byte("just a scalar\n"),
+		}
+		_, err := fixture.provisioner().Plan(provisionToolchainBindings(t))
+		if err == nil || !strings.Contains(err.Error(), "must be a valid YAML mapping; unparseable content is never overwritten") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("rejects an unreadable baseline", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		delete(fixture.territoryContents, "configs/pnpm/pnpm-workspace.base.yaml")
+		_, err := fixture.provisioner().Plan(provisionToolchainBindings(t))
+		if err == nil || !strings.Contains(err.Error(), "read the territory pnpm fortress baseline") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("rejects an unparseable baseline", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		fixture.territoryContents["configs/pnpm/pnpm-workspace.base.yaml"] = []byte("just a scalar\n")
+		_, err := fixture.provisioner().Plan(provisionToolchainBindings(t))
+		if err == nil || !strings.Contains(err.Error(), "the territory pnpm fortress baseline configs/pnpm/pnpm-workspace.base.yaml must be a valid YAML mapping") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("propagates a tenant read error", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		provisioner := fixture.provisioner()
+		provisioner.ReadTenant = func(path string) ([]byte, error) {
+			if path == "pnpm-workspace.yaml" {
+				return nil, errors.New("boom")
+			}
+			return nil, fs.ErrNotExist
+		}
+		_, err := provisioner.Plan(provisionToolchainBindings(t))
+		if err == nil || !strings.Contains(err.Error(), "read the tenant pnpm-workspace.yaml: boom") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+}
+
+func TestApplyToolchainWritesTheProvenMaterializations(t *testing.T) {
+	fixture := passingProvisionFixture(t)
+	fixture.territoryContents = territoryFixtureContents()
+	bindings := provisionToolchainBindings(t)
+	materials, err := fixture.provisioner().Apply(bindings)
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if len(materials) != 10 || len(fixture.written) != 10 {
+		t.Fatalf("materials = %d, written = %d", len(materials), len(fixture.written))
+	}
+	if want := string(territoryFixtureContents()["configs/tsconfig/"+toolchainCategory+"/tsconfig.node.json"]); string(fixture.written["tsconfig.node.json"]) != want {
+		t.Fatalf("the written tsconfig is not the territory artifact: %q", string(fixture.written["tsconfig.node.json"]))
+	}
+
+	// The composed re-render is idempotent: feeding the written bytes back
+	// through the tenant read seam composes the same document again.
+	fixture.tenantContents = fixture.written
+	fixture.written = nil
+	repeated, err := fixture.provisioner().Apply(bindings)
+	if err != nil {
+		t.Fatalf("repeated Apply: %v", err)
+	}
+	first := materialByPath(t, materials, "pnpm-workspace.yaml")
+	second := materialByPath(t, repeated, "pnpm-workspace.yaml")
+	if string(first.Contents) != string(second.Contents) {
+		t.Fatalf("the composed pnpm workspace is not idempotent: %q != %q", string(first.Contents), string(second.Contents))
 	}
 }

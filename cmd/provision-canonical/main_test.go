@@ -327,3 +327,116 @@ func minimalBindings() string {
   "tools": { "module": "tools/go.mod", "catalogVersion": 1 }
 }`
 }
+
+// toolchainBindingsManifest extends the smallest manifest with a toolchain
+// section; the hash forms satisfy the decoder while the plan and apply seams
+// stay overridden in the tests that use it.
+func toolchainBindingsManifest() string {
+	return `{
+  "schemaVersion": 2,
+  "home": { "repository": "t33n-software/repository-governance", "sha": "89be739ee8a1d1ed6ebbe97dd1556a253477d242" },
+  "class": { "qualityGates": "linux-only", "codeScanning": true, "licenseHub": false },
+  "callers": [
+    {
+      "file": ".github/workflows/ci.yml",
+      "master": "hosting-platforms/github/workflows/callers/go/ci.yml",
+      "sha256": "f29a65bd73fe575b159123a9d4bebed86ab4eebe3c5dc5dac31c96e7fb7c4c4a"
+    }
+  ],
+  "files": {
+    "lefthook": { "path": "lefthook.yml", "sha256": "` + strings.Repeat("a", 64) + `" },
+    "gitattributes": { "path": ".gitattributes", "sha256": "` + strings.Repeat("b", 64) + `" },
+    "gitignore": { "path": ".gitignore", "fragments": ["core"], "sha256": "` + strings.Repeat("c", 64) + `" },
+    "dependabot": { "path": ".github/dependabot.yml", "sha256": "` + strings.Repeat("d", 64) + `" }
+  },
+  "codeowners": { "path": ".github/CODEOWNERS", "defaultOwner": "@CyberT33N" },
+  "quality": { "config": "git-governance.quality.json", "schemaVersion": 4 },
+  "tools": { "module": "tools/go.mod", "catalogVersion": 1 },
+  "toolchain": {
+    "territory": { "repository": "t33n-software/go-quality-authority", "sha": "89be739ee8a1d1ed6ebbe97dd1556a253477d242" },
+    "registry": { "path": "configs/registry.json", "sha256": "` + strings.Repeat("1", 64) + `" },
+    "category": "single-project/direct-node",
+    "artifacts": [
+      { "family": "tsconfig", "path": "tsconfig.node.json", "sha256": "` + strings.Repeat("2", 64) + `" }
+    ],
+    "pnpmWorkspace": { "path": "pnpm-workspace.yaml" },
+    "sourceRoots": ["src"]
+  }
+}`
+}
+
+func TestRunTerritoryResolutionError(t *testing.T) {
+	// A toolchain binding without the territory flag is a fail-closed
+	// resolution error: the config topics would claim writes no seam carries.
+	dir := t.TempDir()
+	writeManifest(t, dir, toolchainBindingsManifest())
+	var stdout, stderr strings.Builder
+	if code := run(context.Background(), []string{"--repo=" + dir, "--home=" + t.TempDir()}, &stdout, &stderr); code != 1 {
+		t.Fatalf("run without the territory flag = %d, want 1", code)
+	}
+	if !strings.Contains(stderr.String(), "the binding manifest binds a toolchain section; pass --territory-home <path>") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestRunTerritoryFlagWins(t *testing.T) {
+	defer func() { planTenant = planTenantMaterials }()
+	territory := t.TempDir()
+	if err := os.WriteFile(filepath.Join(territory, "probe.txt"), []byte("territory"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	writeManifest(t, dir, toolchainBindingsManifest())
+	var probed string
+	planTenant = func(provisioner canonical.Provisioner, bindings canonical.Bindings) ([]canonical.Materialization, error) {
+		contents, err := provisioner.ReadTerritory("probe.txt")
+		if err != nil {
+			return nil, err
+		}
+		probed = string(contents)
+		return nil, nil
+	}
+	var stdout, stderr strings.Builder
+	if code := run(context.Background(), []string{"--repo=" + dir, "--home=" + t.TempDir(), "--territory-home", territory, "--dry-run"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("run = %d (stderr: %s)", code, stderr.String())
+	}
+	if probed != "territory" {
+		t.Fatalf("the territory seam read %q", probed)
+	}
+}
+
+func TestRunTerritoryAssignmentForm(t *testing.T) {
+	defer func() { planTenant = planTenantMaterials }()
+	territory := t.TempDir()
+	if err := os.WriteFile(filepath.Join(territory, "probe.txt"), []byte("territory"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	writeManifest(t, dir, toolchainBindingsManifest())
+	var probed string
+	planTenant = func(provisioner canonical.Provisioner, bindings canonical.Bindings) ([]canonical.Materialization, error) {
+		contents, err := provisioner.ReadTerritory("probe.txt")
+		if err != nil {
+			return nil, err
+		}
+		probed = string(contents)
+		return nil, nil
+	}
+	var stdout, stderr strings.Builder
+	if code := run(context.Background(), []string{"--repo=" + dir, "--home=" + t.TempDir(), "--territory-home=" + territory, "--dry-run"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("run with the assignment form = %d (stderr: %s)", code, stderr.String())
+	}
+	if probed != "territory" {
+		t.Fatalf("the territory seam read %q", probed)
+	}
+}
+
+func TestRunTerritoryFlagMissingValue(t *testing.T) {
+	var stdout, stderr strings.Builder
+	if code := run(context.Background(), []string{"--territory-home"}, &stdout, &stderr); code != 2 {
+		t.Fatalf("run with a missing territory value = %d, want 2", code)
+	}
+	if !strings.Contains(stderr.String(), "usage:") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
