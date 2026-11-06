@@ -1,20 +1,45 @@
-# OpenTofu engine-local surfaces.
+# ╭───═══◎◎◎═══───
+# 🧯 **OpenTofu engine-local surfaces**
+# Provider install trees, engine configuration, and crash output of the OpenTofu/Terraform engine.
+# ╰───═══◎◎◎═══───
+#
+# **/.terraform/ — what: downloaded provider and module trees; produced by: tofu init; used by: the engine at plan and apply time; why ignored: regenerable binary provider state, matched at every depth because modules nest their own trees.
 **/.terraform/
+# .terraformrc — what: user-level engine configuration; produced by: the operator or CI setup; used by: the tofu CLI; why ignored: machine-local configuration that can carry credentials.
 .terraformrc
+# terraform.rc — what: Windows-named engine configuration; produced by: the operator or CI setup; used by: the tofu CLI on Windows; why ignored: machine-local configuration.
 terraform.rc
+# crash.log — what: engine crash report; produced by: a crashing tofu run; used by: bug reports when filed manually; why ignored: incident droppings that can embed state.
 crash.log
+# crash.*.log — what: rotated engine crash reports; produced by: crashing tofu runs; used by: manual bug filing; why ignored: incident droppings.
 crash.*.log
 
-# Infrastructure state (secret-shaped; additionally blocked at the server-side
-# boundary).
+# ╭───═══◎◎◎═══───
+# 🗄️ **Infrastructure state**
+# Real-infrastructure state and plan output; secret-shaped and additionally blocked at the server-side push boundary.
+# ╰───═══◎◎◎═══───
+#
+# *.tfstate — what: infrastructure state file; produced by: tofu apply; used by: the engine as its only truth of what exists; why ignored: contains resource attributes and secrets, server-side blocked as well.
 *.tfstate
+# *.tfstate.* — what: state backups and lock artifacts; produced by: tofu state operations; used by: recovery runs; why ignored: same secret shape as the state itself.
 *.tfstate.*
+# *.tfplan — what: saved execution plan binary; produced by: tofu plan -out; used by: tofu apply; why ignored: generated plan data that can embed secrets.
 *.tfplan
 
-# Instance bindings (the values are governed elsewhere).
+# ╭───═══◎◎◎═══───
+# 🧷 **Instance bindings**
+# Per-instance variable and override surfaces whose values are governed in the instance lane, not in module repositories.
+# ╰───═══◎◎◎═══───
+#
+# *.tfvars — what: variable binding files; produced by: operators and CI injection; used by: tofu plan and apply; why ignored: instance values are governed elsewhere and often carry credentials.
 *.tfvars
+# *.tfvars.json — what: JSON variable binding files; produced by: operators and CI injection; used by: tofu plan and apply; why ignored: instance values governed elsewhere.
 *.tfvars.json
+# override.tf — what: implicit override module; produced by: local experimentation; used by: the engine automatically whenever present; why ignored: silent local overrides break reviewable infrastructure.
 override.tf
+# override.tf.json — what: JSON implicit override module; produced by: local experimentation; used by: the engine automatically; why ignored: silent local overrides break reviewable infrastructure.
 override.tf.json
+# *_override.tf — what: named override files; produced by: local experimentation; used by: the engine automatically; why ignored: silent local overrides break reviewable infrastructure.
 *_override.tf
+# *_override.tf.json — what: named JSON override files; produced by: local experimentation; used by: the engine automatically; why ignored: silent local overrides break reviewable infrastructure.
 *_override.tf.json

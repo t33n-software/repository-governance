@@ -1,4 +1,11 @@
-# Go toolchain artifacts.
+# ╭───═══◎◎◎═══───
+# ⚙️ **Go toolchain artifacts**
+# Generated coverage data and compiled test binaries of the Go toolchain.
+# ╰───═══◎◎◎═══───
+#
+# *.coverprofile — what: Go coverage profile files; produced by: go test with -coverprofile; used by: coverage reporters and CI annotations; why ignored: generated measurement output.
 *.coverprofile
+# *.test — what: compiled test binaries; produced by: go test builds; used by: the test runner process; why ignored: transient build output.
 *.test
+# *.cov — what: generic coverage data files; produced by: coverage tooling; used by: reporters; why ignored: generated measurement output.
 *.cov
