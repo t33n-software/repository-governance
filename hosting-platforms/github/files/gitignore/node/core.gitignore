@@ -4,3 +4,9 @@ node_modules/
 .tsbuild/
 *.tsbuildinfo
 logs/
+out/
+
+# Auth-local registry credentials (never committed; the auth-local policy
+# keeps them local or CI-generated).
+.npmrc
+auth.ini
