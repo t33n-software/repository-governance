@@ -14,6 +14,27 @@ root, an ecosystem area as `<area>/core.gitignore`, and a concern fragment as
 single glob `files/gitignore/**/*.gitignore`; there are no in-tree version
 directories.
 
+## The placement law
+
+A pattern lives in the fragment of the lowest common ancestor of every
+ecosystem that produces it. A toolchain output that any Node.js/TypeScript
+build can produce (for example `out/` from the TypeScript default, or the
+auth-local `.npmrc`/`auth.ini` surfaces) belongs to `node/core`, never to a
+narrower concern; a surface only one delivery model produces (for example the
+`.vscode-test/` harness download directory or `*.vsix`) belongs to the concern
+fragment of that model. The cross-fragment restatement guard makes this law
+mechanical: two fragments can never carry the same pattern, because the render
+fails closed on the second one.
+
+## The anchoring convention
+
+Patterns are written unanchored by default — a leading-slash-free pattern such
+as `dist/` matches the workspace root and every nested depth, so a single
+line covers both single-project and monorepo topologies. Root anchoring (a
+leading `/`) is the exception and requires a reason (a root-only directory
+whose nested namesakes are legitimate sources); the org core carries no
+root-anchored output patterns.
+
 ## The render
 
 `internal/canonical.RenderGitignoreGovernedRegion` composes the governed

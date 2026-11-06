@@ -15,6 +15,7 @@ var gitignoreGoldenSets = map[string][]string{
 	"core":                              {"core"},
 	"core-go":                           {"core", "go/core"},
 	"core-node":                         {"core", "node/core"},
+	"core-node-vscode":                  {"core", "node/core", "node/vscode"},
 	"core-opentofu":                     {"core", "opentofu/core"},
 	"core-opentofu-lockfiles-committed": {"core", "opentofu/core", "opentofu/lockfiles-committed"},
 	"core-python":                       {"core", "python/core"},
@@ -36,7 +37,7 @@ func readHomeArtifact(t *testing.T) func(string) ([]byte, error) {
 // is gone, no fragment carries the project-block mark, and the org core
 // carries the canonical secret-artifact families.
 func TestGitignoreFragmentTree(t *testing.T) {
-	fragments := []string{"core.gitignore", "go/core.gitignore", "node/core.gitignore", "opentofu/core.gitignore", "opentofu/lockfiles-committed.gitignore", "python/core.gitignore"}
+	fragments := []string{"core.gitignore", "go/core.gitignore", "node/core.gitignore", "node/vscode.gitignore", "opentofu/core.gitignore", "opentofu/lockfiles-committed.gitignore", "python/core.gitignore"}
 	for _, fragment := range fragments {
 		content := readArtifact(t, "hosting-platforms/github/files/gitignore/"+fragment)
 		if strings.Contains(content, "# -- project additions below this line --") {
@@ -52,7 +53,7 @@ func TestGitignoreFragmentTree(t *testing.T) {
 	for _, line := range strings.Split(core, "\n") {
 		coreLines[strings.TrimSpace(line)] = struct{}{}
 	}
-	for _, family := range []string{"/.build/", "/dist/", "/coverage/", "/.cache/", "*.out", ".env", ".env.*", ".envrc", ".env*.local", "credentials", "credentials.*", "*.pem", "*.key", "*.p12", "*.pfx", "*.jks", "*.keystore", "*.kdbx", "*.ppk", "*.gpg"} {
+	for _, family := range []string{".build/", "dist/", "coverage/", ".cache/", "*.out", ".DS_Store", ".idea/", ".env", ".env.*", ".envrc", ".env*.local", "credentials", "credentials.*", "*.pem", "*.key", "*.p12", "*.pfx", "*.jks", "*.keystore", "*.kdbx", "*.ppk", "*.gpg"} {
 		if _, found := coreLines[family]; !found {
 			t.Fatalf("the org core must carry the family %q", family)
 		}
@@ -87,7 +88,7 @@ func TestGitignoreGoldenRenders(t *testing.T) {
 // lockfile policy fragment carries no pattern.
 func TestGitignoreCompositionInvariants(t *testing.T) {
 	seen := make(map[string]string)
-	for _, fragment := range []string{"core.gitignore", "go/core.gitignore", "node/core.gitignore", "opentofu/core.gitignore", "opentofu/lockfiles-committed.gitignore", "python/core.gitignore"} {
+	for _, fragment := range []string{"core.gitignore", "go/core.gitignore", "node/core.gitignore", "node/vscode.gitignore", "opentofu/core.gitignore", "opentofu/lockfiles-committed.gitignore", "python/core.gitignore"} {
 		for _, line := range strings.Split(readArtifact(t, "hosting-platforms/github/files/gitignore/"+fragment), "\n") {
 			trimmed := strings.TrimSpace(line)
 			if trimmed == "" || strings.HasPrefix(trimmed, "#") {

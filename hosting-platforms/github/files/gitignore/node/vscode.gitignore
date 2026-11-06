@@ -1,0 +1,6 @@
+# VS Code extension delivery surfaces: .vscode-test/ is the download directory
+# of the official @vscode/test-electron harness, where downloadAndUnzipVSCode
+# stores each test instance under .vscode-test/vscode-<version>; *.vsix is the
+# packaged extension artifact produced by @vscode/vsce.
+.vscode-test/
+*.vsix

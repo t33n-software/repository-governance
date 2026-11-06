@@ -1,11 +1,15 @@
 # Local build and test outputs.
-/.build/
-/dist/
-/coverage/
-/.cache/
+.build/
+dist/
+coverage/
+.cache/
 
 # Universal toolchain output suffix.
 *.out
+
+# Editor and operating-system state.
+.DS_Store
+.idea/
 
 # Never-commit secret-artifact guard (the client-side projection of the
 # server-side push boundary).
