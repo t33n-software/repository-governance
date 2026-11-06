@@ -1,6 +1,9 @@
-# VS Code extension delivery surfaces: .vscode-test/ is the download directory
-# of the official @vscode/test-electron harness, where downloadAndUnzipVSCode
-# stores each test instance under .vscode-test/vscode-<version>; *.vsix is the
-# packaged extension artifact produced by @vscode/vsce.
+# ╭───═══◎◎◎═══───
+# 🚀 **VS Code extension delivery surfaces**
+# Surfaces produced only by the VS Code extension development and packaging toolchain.
+# ╰───═══◎◎◎═══───
+#
+# .vscode-test/ — what: downloaded VS Code instances for integration testing; produced by: the official @vscode/test-electron harness, whose downloadAndUnzipVSCode stores each instance under .vscode-test/vscode-<version>; used by: the test runner launching those instances; why ignored: hundreds of megabytes of downloaded binaries, regenerable per run.
 .vscode-test/
+# *.vsix — what: packaged extension archives; produced by: @vscode/vsce package; used by: Install from VSIX and the private gallery distribution; why ignored: build output published through the release lane, never committed as source.
 *.vsix

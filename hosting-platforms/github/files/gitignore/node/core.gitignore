@@ -1,12 +1,27 @@
-# Node.js/TypeScript toolchain artifacts.
+# ╭───═══◎◎◎═══───
+# 🧩 **Node.js/TypeScript toolchain artifacts**
+# Install trees, incremental build state, and emitted output of the Node/TypeScript toolchain, matched at the root and every nested depth so monorepo packages share the same rules.
+# ╰───═══◎◎◎═══───
+#
+# node_modules/ — what: installed dependency tree; produced by: package-manager install of any Node package manager; used by: runtime and build resolution; why ignored: reproducible from the lockfile, never committed.
 node_modules/
+# .pnpm/ — what: pnpm virtual store and link trees; produced by: pnpm install; used by: pnpm's module resolution; why ignored: machine-local store state.
 .pnpm/
+# .tsbuild/ — what: incremental TypeScript build state trees; produced by: tsc incremental builds; used by: the compiler cache; why ignored: regenerable build state.
 .tsbuild/
+# *.tsbuildinfo — what: incremental build information files; produced by: tsc with incremental compilation; used by: the next tsc run; why ignored: compiler bookkeeping.
 *.tsbuildinfo
+# logs/ — what: log output directories; produced by: local runs and test tooling; used by: the operator reading them; why ignored: runtime log output is never committed content.
 logs/
+# out/ — what: default compile output directory; produced by: the tsc watch workflow (generator-code default outDir) and by electron-vite builds; used by: debug launch configurations and packaging steps; why ignored: generated output duplicating the source tree.
 out/
 
-# Auth-local registry credentials (never committed; the auth-local policy
-# keeps them local or CI-generated).
+# ╭───═══◎◎◎═══───
+# 📜 **Auth-local registry credentials**
+# The auth-local policy keeps registry credentials local or CI-generated; both surfaces carry tokens and are never committed anywhere.
+# ╰───═══◎◎◎═══───
+#
+# .npmrc — what: registry-auth and token configuration file; produced by: local login or CI credential generation; used by: npm-family clients reading registry credentials; why ignored: secret-bearing and machine-local by the auth-local policy.
 .npmrc
+# auth.ini — what: auth-local credential file of the pnpm family; produced by: local or CI credential setup; used by: registry authentication flows; why ignored: secret-bearing by the auth-local policy.
 auth.ini

@@ -1,3 +1,6 @@
-# Lockfile policy: committed. OpenTofu lock files (**/.terraform.lock.hcl) are
-# committed to the repository; this fragment binds that policy and therefore
-# carries no ignore pattern for them.
+# ╭───═══◎◎◎═══───
+# 📦 **Lockfile policy: committed**
+# A policy statement fragment binding the decision that OpenTofu lock files are committed; it therefore carries no ignore pattern.
+# ╰───═══◎◎◎═══───
+#
+# **/.terraform.lock.hcl — what: dependency lock file pinning provider versions and checksums; produced by: tofu init; used by: every later plan and apply for reproducible provider selection; why ignored: not ignored — committing it is the policy this fragment binds.

@@ -1,9 +1,21 @@
-# Python toolchain artifacts.
+# ╭───═══◎◎◎═══───
+# 🐍 **Python toolchain artifacts**
+# Bytecode caches, virtual environments, and tool caches of the Python ecosystem.
+# ╰───═══◎◎◎═══───
+#
+# __pycache__/ — what: bytecode cache trees; produced by: the interpreter on module import; used by: the interpreter itself; why ignored: regenerable cache state.
 __pycache__/
+# *.py[cod] — what: compiled bytecode files (.pyc/.pyo/.pyd); produced by: the interpreter on import; used by: the interpreter itself; why ignored: regenerable cache state.
 *.py[cod]
+# .venv/ — what: project virtual environment; produced by: venv and uv environment creation; used by: local runs and tooling resolution; why ignored: machine-local environment.
 .venv/
+# venv/ — what: legacy-named virtual environment; produced by: venv creation; used by: local runs; why ignored: machine-local environment.
 venv/
+# .pytest_cache/ — what: pytest run-state cache; produced by: pytest; used by: the next pytest run; why ignored: regenerable tool cache.
 .pytest_cache/
+# .coverage — what: coverage.py data file; produced by: coverage.py runs; used by: coverage reporters; why ignored: generated measurement output.
 .coverage
+# .mypy_cache/ — what: mypy type-check cache; produced by: mypy; used by: the next mypy run; why ignored: regenerable tool cache.
 .mypy_cache/
+# .ruff_cache/ — what: ruff lint cache; produced by: ruff; used by: the next ruff run; why ignored: regenerable tool cache.
 .ruff_cache/

@@ -1,30 +1,67 @@
-# Local build and test outputs.
+# ╭───═══◎◎◎═══───
+# 🏗️ **Local build and test outputs**
+# Generated build, test, and cache trees, matched at the workspace root and at every nested depth so single projects and monorepos share one rule.
+# ╰───═══◎◎◎═══───
+#
+# .build/ — what: local build scratch tree; produced by: local build tooling; used by: the build run itself; why ignored: machine-local scratch state that never becomes committed truth.
 .build/
+# dist/ — what: final distribution output; produced by: build and packaging pipelines; used by: release steps reading it from disk; why ignored: generated output, delivered as published artifacts instead of source.
 dist/
+# coverage/ — what: test-coverage output trees; produced by: coverage runners of every language; used by: coverage reporters and CI annotations; why ignored: generated measurement output.
 coverage/
+# .cache/ — what: tool cache trees; produced by: build and test tools; used by: the same tools on this machine; why ignored: regenerable cache state, matched at every depth for monorepo packages.
 .cache/
 
-# Universal toolchain output suffix.
+# ╭───═══◎◎◎═══───
+# 📤 **Universal toolchain output suffix**
+# The one output extension every toolchain in the fleet shares, whatever produces it.
+# ╰───═══◎◎◎═══───
+#
+# *.out — what: generic compiled output files; produced by: compilers and test binaries across toolchains; used by: the invoking process only; why ignored: transient output with no committed role.
 *.out
 
-# Editor and operating-system state.
+# ╭───═══◎◎◎═══───
+# 🖥️ **Editor and operating-system state**
+# State files that editors and operating systems leave inside repositories.
+# ╰───═══◎◎◎═══───
+#
+# .DS_Store — what: Finder metadata file; produced by: macOS Finder on folder access; used by: nothing but the local machine; why ignored: operating-system droppings carry no project meaning.
 .DS_Store
+# .idea/ — what: JetBrains project state tree; produced by: JetBrains IDEs on project open; used by: the local IDE session; why ignored: editor state is personal, not project truth.
 .idea/
 
-# Never-commit secret-artifact guard (the client-side projection of the
-# server-side push boundary).
+# ╭───═══◎◎◎═══───
+# 🔐 **Never-commit secret-artifact guard**
+# The client-side projection of the server-side push boundary; the family set is fixed by the home's canonical secret families and every member is proven present by the render.
+# ╰───═══◎◎◎═══───
+#
+# .env — what: environment variable file carrying secrets and configuration; produced by: developers and dotenv tooling; used by: the application at startup through dotenv loaders; why ignored: secret-bearing local config must never be committed.
 .env
+# .env.* — what: mode-specific environment files such as .env.production; produced by: developers and deployment tooling; used by: dotenv loaders selecting a mode; why ignored: same secret-bearing family as .env.
 .env.*
+# .envrc — what: direnv entry file exporting shell variables; produced by: direnv users; used by: direnv on directory entry; why ignored: machine-local shell environment that can export secrets.
 .envrc
+# .env*.local — what: local overrides of environment files; produced by: developers for personal settings; used by: dotenv loaders after the base file; why ignored: personal local secrets.
 .env*.local
+# credentials — what: plain credential file at the repository root; produced by: cloud and service CLI login flows; used by: those CLIs for authentication; why ignored: raw credential material.
 credentials
+# credentials.* — what: credential variants and stores; produced by: CLI login flows; used by: the same CLIs; why ignored: raw credential material in every spelling.
 credentials.*
+# *.pem — what: PEM-encoded key and certificate material; produced by: openssl and infrastructure tooling; used by: TLS clients and signers; why ignored: private key material.
 *.pem
+# *.key — what: private key files; produced by: key generators; used by: signers and TLS endpoints; why ignored: private key material.
 *.key
+# *.p12 — what: PKCS#12 keystore bundles; produced by: certificate export tooling; used by: Windows and Java keystore consumers; why ignored: bundles contain private keys.
 *.p12
+# *.pfx — what: PKCS#12 export files; produced by: certificate export tooling; used by: Windows credential consumers; why ignored: bundles contain private keys.
 *.pfx
+# *.jks — what: Java keystore files; produced by: keytool; used by: JVM TLS and signing tooling; why ignored: contains private keys.
 *.jks
+# *.keystore — what: generic keystore files; produced by: JVM and client tooling; used by: the consuming runtime; why ignored: contains private keys.
 *.keystore
+# *.kdbx — what: KeePass secret databases; produced by: password managers; used by: the manager application; why ignored: encrypted vault material never belongs in a repository.
 *.kdbx
+# *.ppk — what: PuTTY private key files; produced by: PuTTYgen; used by: PuTTY-based clients; why ignored: private key material.
 *.ppk
+# *.gpg — what: GPG key or encrypted secret files; produced by: gpg; used by: gpg consumers; why ignored: key material and encrypted secrets.
 *.gpg
