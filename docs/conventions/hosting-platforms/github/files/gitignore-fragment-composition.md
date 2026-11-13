@@ -90,7 +90,7 @@ The tenant binding manifest records the topic at schema version 2:
 
 The list is order-bearing and explicit: the core is always the first
 fragment, and a binding that omits it fails closed. The schema document lives
-at `schemas/repo-bindings/v2/repo-bindings.schema.json`; earlier major
+at `schemas/repo-bindings/v3/repo-bindings.schema.json`; earlier major
 versions stay published and immutable.
 
 ## Rollout

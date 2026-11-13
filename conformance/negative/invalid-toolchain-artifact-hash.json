@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "home": {
     "repository": "t33n-software/repository-governance",
     "version": "v1.0.0",
@@ -43,7 +43,6 @@
     "artifacts": [
       { "family": "tsconfig", "path": "tsconfig.base.json", "sha256": "222222222222222222222222222222222222222222222222222222222222222" }
     ],
-    "pnpmWorkspace": { "path": "pnpm-workspace.yaml" },
     "sourceRoots": ["src"]
   }
 }

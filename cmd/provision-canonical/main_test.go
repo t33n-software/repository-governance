@@ -306,7 +306,7 @@ func writeManifest(t *testing.T, dir, contents string) {
 // minimalBindings is the smallest manifest that decodes.
 func minimalBindings() string {
 	return `{
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "home": { "repository": "t33n-software/repository-governance", "sha": "89be739ee8a1d1ed6ebbe97dd1556a253477d242" },
   "class": { "qualityGates": "linux-only", "codeScanning": true, "licenseHub": false },
   "callers": [
@@ -333,7 +333,7 @@ func minimalBindings() string {
 // stay overridden in the tests that use it.
 func toolchainBindingsManifest() string {
 	return `{
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "home": { "repository": "t33n-software/repository-governance", "sha": "89be739ee8a1d1ed6ebbe97dd1556a253477d242" },
   "class": { "qualityGates": "linux-only", "codeScanning": true, "licenseHub": false },
   "callers": [
@@ -359,7 +359,6 @@ func toolchainBindingsManifest() string {
     "artifacts": [
       { "family": "tsconfig", "path": "tsconfig.node.json", "sha256": "` + strings.Repeat("2", 64) + `" }
     ],
-    "pnpmWorkspace": { "path": "pnpm-workspace.yaml" },
     "sourceRoots": ["src"]
   }
 }`
