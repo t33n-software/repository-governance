@@ -26,8 +26,14 @@ const testDirectNodeLeaf = "{\n  \"compilerOptions\": {\n    \"module\": \"Node2
 // testNoPrebuildLeaf is a conforming no-prebuild delivery lane.
 const testNoPrebuildLeaf = "{\n  \"compilerOptions\": {\n    \"module\": \"Node20\",\n    \"moduleResolution\": \"Node16\"\n  },\n  \"include\": [\"src/**/*\"]\n}\n"
 
+// derivationFixtureJSON is the territory-owned derivation declaration the
+// fixture registry carries: the contract file, its format, the identity
+// extraction, the conditional workspace documents, the baseline file, and the
+// tenant-owned keys.
+const derivationFixtureJSON = `"derivation":{"contractFile":"package.json","format":"json","identity":{"field":"packageManager","form":"corepack"},"workspaceFiles":{"pnpm":"pnpm-workspace.yaml"},"baselineFile":"configs/pnpm/pnpm-workspace.base.yaml","tenantOwnedKeys":["catalog"]},`
+
 func territoryRegistryJSON() string {
-	return `{"schemaVersion":1,"categories":[` +
+	return `{"schemaVersion":1,` + derivationFixtureJSON + `"categories":[` +
 		`{"id":"single-project/bundler-owned","title":"Bundler-owned","artifacts":{"tsconfig":"configs/tsconfig/single-project/bundler-owned/","tsdown":"configs/tsdown/single-project/bundler-owned/"},"proof":{"baseByteIdentity":true,"leafInvariants":["node.noEmit == true"],"behaviorGate":["install","typecheck","test","build"]}},` +
 		`{"id":"single-project/direct-node","title":"Direct-node","artifacts":{"tsconfig":"configs/tsconfig/single-project/direct-node/"},"proof":{"baseByteIdentity":true,"behaviorGate":["install","typecheck","test","build"]}},` +
 		`{"id":"single-project/direct-node/no-prebuild","title":"No-prebuild","artifacts":{"tsconfig":"configs/tsconfig/single-project/direct-node/no-prebuild/"},"proof":{"baseByteIdentity":true,"behaviorGate":["install","typecheck","test","build"]}},` +
@@ -86,6 +92,7 @@ func toolchainFixtureContents() (map[string][]byte, map[string][]byte) {
 		"tsdown.config.ts":    []byte("tsdown-canonical"),
 		"tsconfig.node.json":  []byte(testBundlerLeaf),
 		"pnpm-workspace.yaml": []byte(testPnpmTenant),
+		"package.json":        []byte("{\"packageManager\": \"pnpm@12.17.0\"}\n"),
 	}
 	return territory, tenant
 }
@@ -99,8 +106,7 @@ func toolchainBinding() *ToolchainBindings {
 			{Family: "tsconfig", Path: "tsconfig.base.json", SHA256: Sum256Hex([]byte("base-canonical"))},
 			{Family: "tsdown", Path: "tsdown.config.ts", SHA256: Sum256Hex([]byte("tsdown-canonical"))},
 		},
-		PnpmWorkspace: PnpmWorkspaceBinding{Path: "pnpm-workspace.yaml"},
-		SourceRoots:   []string{"src"},
+		SourceRoots: []string{"src"},
 	}
 }
 
@@ -200,7 +206,7 @@ func TestVerifyToolchainConfigRegistryProofs(t *testing.T) {
 		assertFindingContains(t, findings, "no categories")
 	})
 	t.Run("unregistered category", func(t *testing.T) {
-		registryJSON := `{"schemaVersion":1,"categories":[{"id":"single-project/direct-node","artifacts":{}}]}`
+		registryJSON := `{"schemaVersion":1,` + derivationFixtureJSON + `"categories":[{"id":"single-project/direct-node","artifacts":{}}]}`
 		binding := toolchainBinding()
 		binding.Registry.SHA256 = Sum256Hex([]byte(registryJSON))
 		territory, tenant := toolchainFixtureContents()
@@ -213,7 +219,7 @@ func TestVerifyToolchainConfigRegistryProofs(t *testing.T) {
 
 func TestVerifyConfigArtifactsProofs(t *testing.T) {
 	t.Run("unmapped family", func(t *testing.T) {
-		registryJSON := `{"schemaVersion":1,"categories":[{"id":"single-project/bundler-owned","artifacts":{"tsdown":"configs/tsdown/single-project/bundler-owned/"}}]}`
+		registryJSON := `{"schemaVersion":1,` + derivationFixtureJSON + `"categories":[{"id":"single-project/bundler-owned","artifacts":{"tsdown":"configs/tsdown/single-project/bundler-owned/"}}]}`
 		binding := toolchainBinding()
 		binding.Registry.SHA256 = Sum256Hex([]byte(registryJSON))
 		territory, tenant := toolchainFixtureContents()
@@ -223,7 +229,7 @@ func TestVerifyConfigArtifactsProofs(t *testing.T) {
 		assertFindingContains(t, findings, "no artifact mapping for the family")
 	})
 	t.Run("folder identity mismatch", func(t *testing.T) {
-		registryJSON := `{"schemaVersion":1,"categories":[{"id":"single-project/bundler-owned","artifacts":{"tsconfig":"configs/tsconfig/other-lane/"}}]}`
+		registryJSON := `{"schemaVersion":1,` + derivationFixtureJSON + `"categories":[{"id":"single-project/bundler-owned","artifacts":{"tsconfig":"configs/tsconfig/other-lane/"}}]}`
 		binding := toolchainBinding()
 		binding.Registry.SHA256 = Sum256Hex([]byte(registryJSON))
 		territory, tenant := toolchainFixtureContents()
@@ -255,6 +261,19 @@ func TestVerifyConfigArtifactsProofs(t *testing.T) {
 		fixture.tenant["tsconfig.base.json"] = []byte("drifted")
 		findings := fixture.verifier().verifyToolchainConfig(Bindings{Toolchain: toolchainBinding()}, seamWithCategory("single-project/bundler-owned"))
 		assertFindingContains(t, findings, "the tenant tsconfig.base.json hash")
+	})
+	t.Run("a composition family reports the missing proof", func(t *testing.T) {
+		fixture := passingToolchainFixture()
+		binding := toolchainBinding()
+		binding.Artifacts = append(binding.Artifacts, ArtifactBinding{
+			Family:    "vscodeignore",
+			Path:      ".vscodeignore",
+			SHA256:    strings.Repeat("9", 64),
+			Home:      "vscode-extension-governance",
+			Fragments: []string{"core", "node"},
+		})
+		findings := fixture.verifier().verifyToolchainConfig(Bindings{Toolchain: binding}, seamWithCategory("single-project/bundler-owned"))
+		assertFindingContains(t, findings, "no implemented composition proof")
 	})
 }
 
@@ -348,14 +367,69 @@ func TestVerifyConfigPnpmWorkspaceProofs(t *testing.T) {
 		findings := fixture.verifier().verifyToolchainConfig(Bindings{Toolchain: toolchainBinding()}, seamWithCategory("single-project/bundler-owned"))
 		assertFindingContains(t, findings, "the territory baseline")
 	})
-	t.Run("tenant read error", func(t *testing.T) {
+	t.Run("ecosystem contract read error", func(t *testing.T) {
 		fixture := passingToolchainFixture()
 		fixture.tenantErr = fmt.Errorf("boom")
 		findings := fixture.verifier().verifyToolchainConfig(Bindings{Toolchain: toolchainBinding()}, seamWithCategory("single-project/bundler-owned"))
 		assertFindingContains(t, findings, "boom")
 	})
+	t.Run("workspace document read error", func(t *testing.T) {
+		fixture := passingToolchainFixture()
+		verifier := Verifier{
+			ReadTerritory: func(path string) ([]byte, error) {
+				contents, found := fixture.territory[path]
+				if !found {
+					return nil, fmt.Errorf("no such territory file: %s", path)
+				}
+				return contents, nil
+			},
+			ReadTenant: func(path string) ([]byte, error) {
+				if path == "pnpm-workspace.yaml" {
+					return nil, fmt.Errorf("boom")
+				}
+				contents, found := fixture.tenant[path]
+				if !found {
+					return nil, fmt.Errorf("no such tenant file: %s", path)
+				}
+				return contents, nil
+			},
+		}
+		findings := verifier.verifyToolchainConfig(Bindings{Toolchain: toolchainBinding()}, seamWithCategory("single-project/bundler-owned"))
+		assertFindingContains(t, findings, "read pnpm-workspace.yaml: boom")
+	})
 }
 
+// TestVerifyToolchainConfigDerivationRequirement proves the fleet-side
+// obligation: a toolchain binding whose pinned registry carries no derivation
+// block fails closed, because the package-manager identity would have no
+// declared owner surface and the fleet would silently fall back to a
+// hard-coded ecosystem fact.
+func TestVerifyToolchainConfigDerivationRequirement(t *testing.T) {
+	t.Run("a registry without a derivation block fails closed", func(t *testing.T) {
+		registryJSON := `{"schemaVersion":1,"categories":[{"id":"single-project/bundler-owned","artifacts":{}}]}`
+		binding := toolchainBinding()
+		binding.Registry.SHA256 = Sum256Hex([]byte(registryJSON))
+		territory, tenant := toolchainFixtureContents()
+		territory["configs/registry.json"] = []byte(registryJSON)
+		fixture := toolchainFixture{territory: territory, tenant: tenant}
+		findings := fixture.verifier().verifyToolchainConfig(Bindings{Toolchain: binding}, seamWithCategory("single-project/bundler-owned"))
+		assertFindingContains(t, findings, "no derivation block")
+	})
+	t.Run("an npm identity skips the workspace proof", func(t *testing.T) {
+		fixture := passingToolchainFixture()
+		fixture.tenant["package.json"] = []byte("{\"packageManager\": \"npm@11.20.0\"}\n")
+		findings := fixture.verifier().verifyToolchainConfig(Bindings{Toolchain: toolchainBinding()}, seamWithCategory("single-project/bundler-owned"))
+		if len(findings) != 0 {
+			t.Fatalf("findings = %v", findings)
+		}
+	})
+	t.Run("a missing package-manager declaration fails closed", func(t *testing.T) {
+		fixture := passingToolchainFixture()
+		fixture.tenant["package.json"] = []byte("{}\n")
+		findings := fixture.verifier().verifyToolchainConfig(Bindings{Toolchain: toolchainBinding()}, seamWithCategory("single-project/bundler-owned"))
+		assertFindingContains(t, findings, "carries no \"packageManager\" declaration")
+	})
+}
 func TestStripJSONComments(t *testing.T) {
 	t.Run("preserves slashes inside strings", func(t *testing.T) {
 		stripped, err := stripJSONComments([]byte("{\"a\": \"https://example.org/x\"}\n"))
@@ -451,8 +525,8 @@ func TestCategoryTerritoryDirDerivesTheIdentity(t *testing.T) {
 	if got := categoryTerritoryDir("tsconfig", "monorepo"); got != "configs/tsconfig/monorepo/" {
 		t.Fatalf("dir = %q", got)
 	}
-	if got := territoryPnpmBaselinePath(); got != "configs/pnpm/pnpm-workspace.base.yaml" {
-		t.Fatalf("baseline path = %q", got)
+	if got := workspaceDocumentPath(PackageIdentity{Name: "npm"}, map[string]string{"pnpm": "pnpm-workspace.yaml"}); got != "" {
+		t.Fatalf("a tool without a workspace mapping must derive no path, got %q", got)
 	}
 }
 
@@ -464,17 +538,17 @@ func toolchainJSONFragment(mutation func(s string) string) string {
   "registry": { "path": "configs/registry.json", "sha256": "` + strings.Repeat("1", 64) + `" },
   "category": "single-project/bundler-owned",
   "artifacts": [
-    { "family": "tsconfig", "path": "tsconfig.base.json", "sha256": "` + strings.Repeat("2", 64) + `" }
+    { "family": "tsconfig", "path": "tsconfig.base.json", "sha256": "` + strings.Repeat("2", 64) + `" },
+    { "family": "vscodeignore", "path": ".vscodeignore", "sha256": "` + strings.Repeat("7", 64) + `", "home": "vscode-extension-governance", "fragments": ["core", "node"] }
   ],
-  "pnpmWorkspace": { "path": "pnpm-workspace.yaml" },
-  "sourceRoots": ["src"]
-}`
+   "sourceRoots": ["src"]
+ }`
 	return mutation(base)
 }
 
 func TestDecodeBindingsToolchainSection(t *testing.T) {
 	t.Run("valid section decodes", func(t *testing.T) {
-		manifest := "{" + `"schemaVersion":2,` +
+		manifest := "{" + `"schemaVersion":3,` +
 			`"home":{"repository":"t33n-software/repository-governance","sha":"` + testHomeSHA + `"},` +
 			`"class":{"qualityGates":"full","codeScanning":true,"licenseHub":false},` +
 			`"callers":[{"file":".github/workflows/ci.yml","master":"hosting-platforms/github/workflows/callers/go/ci.yml","sha256":"` + strings.Repeat("a", 64) + `"}],` +
@@ -498,7 +572,7 @@ func TestDecodeBindingsToolchainSection(t *testing.T) {
 		}
 	})
 	t.Run("absent section decodes", func(t *testing.T) {
-		manifest := "{" + `"schemaVersion":2,` +
+		manifest := "{" + `"schemaVersion":3,` +
 			`"home":{"repository":"t33n-software/repository-governance","sha":"` + testHomeSHA + `"},` +
 			`"class":{"qualityGates":"full","codeScanning":true,"licenseHub":false},` +
 			`"callers":[{"file":".github/workflows/ci.yml","master":"hosting-platforms/github/workflows/callers/go/ci.yml","sha256":"` + strings.Repeat("a", 64) + `"}],` +
@@ -514,28 +588,35 @@ func TestDecodeBindingsToolchainSection(t *testing.T) {
 			t.Fatal("the absent section must decode to nil")
 		}
 	})
+	toolchainHead := `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo",`
+	toolchainTail := `,"sourceRoots":["src"]}`
 	rejections := []struct {
 		name     string
 		section  string
 		contains string
 	}{
-		{name: "bad territory repository", section: `"toolchain":{"territory":{"repository":"no coordinate","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo","artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}],"pnpmWorkspace":{"path":"p.yaml"}}`, contains: "owner/repository"},
-		{name: "bad territory sha", section: `"toolchain":{"territory":{"repository":"o/r","sha":"short"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo","artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}],"pnpmWorkspace":{"path":"p.yaml"}}`, contains: "commit SHA"},
-		{name: "bad registry path", section: `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"../escape","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo","artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}],"pnpmWorkspace":{"path":"p.yaml"}}`, contains: "parent traversal"},
-		{name: "bad registry hash", section: `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"short"},"category":"monorepo","artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}],"pnpmWorkspace":{"path":"p.yaml"}}`, contains: "hex digest"},
-		{name: "bad category form", section: `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"Single_Project","artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}],"pnpmWorkspace":{"path":"p.yaml"}}`, contains: "hierarchical kebab"},
-		{name: "empty artifacts", section: `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo","artifacts":[],"pnpmWorkspace":{"path":"p.yaml"}}`, contains: "between 1 and"},
-		{name: "unknown family", section: `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo","artifacts":[{"family":"eslint","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}],"pnpmWorkspace":{"path":"p.yaml"}}`, contains: "tsconfig, vitest, or tsdown"},
-		{name: "bad artifact path", section: `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo","artifacts":[{"family":"tsconfig","path":"../a.json","sha256":"` + strings.Repeat("2", 64) + `"}],"pnpmWorkspace":{"path":"p.yaml"}}`, contains: "parent traversal"},
-		{name: "bad artifact hash", section: `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo","artifacts":[{"family":"tsconfig","path":"a.json","sha256":"short"}],"pnpmWorkspace":{"path":"p.yaml"}}`, contains: "hex digest"},
-		{name: "duplicate artifact", section: `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo","artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"},{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("3", 64) + `"}],"pnpmWorkspace":{"path":"p.yaml"}}`, contains: "must not repeat"},
-		{name: "bad pnpm path", section: `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo","artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}],"pnpmWorkspace":{"path":"../p.yaml"}}`, contains: "parent traversal"},
-		{name: "bad source root", section: `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo","artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}],"pnpmWorkspace":{"path":"p.yaml"},"sourceRoots":["../escape"]}`, contains: "parent traversal"},
-		{name: "duplicate source root", section: `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo","artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}],"pnpmWorkspace":{"path":"p.yaml"},"sourceRoots":["src","src"]}`, contains: "must not repeat"},
+		{name: "bad territory repository", section: `"toolchain":{"territory":{"repository":"no coordinate","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo","artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}]}`, contains: "owner/repository"},
+		{name: "bad territory sha", section: `"toolchain":{"territory":{"repository":"o/r","sha":"short"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo","artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}]}`, contains: "commit SHA"},
+		{name: "bad registry path", section: `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"../escape","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo","artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}]}`, contains: "parent traversal"},
+		{name: "bad registry hash", section: `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"short"},"category":"monorepo","artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}]}`, contains: "hex digest"},
+		{name: "bad category form", section: `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"Single_Project","artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}]}`, contains: "hierarchical kebab"},
+		{name: "empty artifacts", section: `"toolchain":{"territory":{"repository":"o/r","sha":"` + testTerritorySHA + `"},"registry":{"path":"configs/registry.json","sha256":"` + strings.Repeat("1", 64) + `"},"category":"monorepo","artifacts":[]}`, contains: "between 1 and"},
+		{name: "unknown family", section: toolchainHead + `"artifacts":[{"family":"webpack","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}]` + toolchainTail, contains: "must be eslint, tsconfig, tsdown, vitest, or vscodeignore"},
+		{name: "bad artifact path", section: toolchainHead + `"artifacts":[{"family":"tsconfig","path":"../a.json","sha256":"` + strings.Repeat("2", 64) + `"}]` + toolchainTail, contains: "parent traversal"},
+		{name: "bad artifact hash", section: toolchainHead + `"artifacts":[{"family":"tsconfig","path":"a.json","sha256":"short"}]` + toolchainTail, contains: "hex digest"},
+		{name: "duplicate artifact", section: toolchainHead + `"artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"},{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("3", 64) + `"}]` + toolchainTail, contains: "must not repeat"},
+		{name: "duplicate composition fragment", section: toolchainHead + `"artifacts":[{"family":"vscodeignore","path":".vscodeignore","sha256":"` + strings.Repeat("2", 64) + `","fragments":["core","core"]}]` + toolchainTail, contains: "must not repeat a fragment"},
+		{name: "bad artifact home", section: toolchainHead + `"artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `","home":"Bad_Home"}]` + toolchainTail, contains: "lowercase kebab repository name"},
+		{name: "fragments on byte identity", section: toolchainHead + `"artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `","fragments":["core"]}]` + toolchainTail, contains: "bind only on composition families"},
+		{name: "composition without fragments", section: toolchainHead + `"artifacts":[{"family":"vscodeignore","path":".vscodeignore","sha256":"` + strings.Repeat("2", 64) + `"}]` + toolchainTail, contains: "at least the core fragment"},
+		{name: "composition core not first", section: toolchainHead + `"artifacts":[{"family":"vscodeignore","path":".vscodeignore","sha256":"` + strings.Repeat("2", 64) + `","fragments":["node","core"]}]` + toolchainTail, contains: "must begin with the core fragment"},
+		{name: "bad composition fragment", section: toolchainHead + `"artifacts":[{"family":"vscodeignore","path":".vscodeignore","sha256":"` + strings.Repeat("2", 64) + `","fragments":["core","../evil"]}]` + toolchainTail, contains: "canonical fragment name"},
+		{name: "bad source root", section: toolchainHead + `"artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}],"sourceRoots":["../escape"]}`, contains: "parent traversal"},
+		{name: "duplicate source root", section: toolchainHead + `"artifacts":[{"family":"tsconfig","path":"a.json","sha256":"` + strings.Repeat("2", 64) + `"}],"sourceRoots":["src","src"]}`, contains: "must not repeat"},
 	}
 	for _, rejection := range rejections {
 		t.Run(rejection.name, func(t *testing.T) {
-			manifest := "{" + `"schemaVersion":2,` +
+			manifest := "{" + `"schemaVersion":3,` +
 				`"home":{"repository":"t33n-software/repository-governance","sha":"` + testHomeSHA + `"},` +
 				`"class":{"qualityGates":"full","codeScanning":true,"licenseHub":false},` +
 				`"callers":[{"file":".github/workflows/ci.yml","master":"hosting-platforms/github/workflows/callers/go/ci.yml","sha256":"` + strings.Repeat("a", 64) + `"}],` +

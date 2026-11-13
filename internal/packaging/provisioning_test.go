@@ -112,8 +112,9 @@ func TestProvisionedToolchainTenantPassesTheConformanceVerifier(t *testing.T) {
 	vitest := "export const vitest = 'fixture'\n"
 	tsdown := "export const tsdown = 'fixture'\n"
 	registry := fmt.Sprintf(`{
-  "schemaVersion": 1,
-  "categories": [
+	  "schemaVersion": 1,
+	  "derivation": { "contractFile": "package.json", "format": "json", "identity": { "field": "packageManager", "form": "corepack" }, "workspaceFiles": { "pnpm": "pnpm-workspace.yaml" }, "baselineFile": "configs/pnpm/pnpm-workspace.base.yaml", "tenantOwnedKeys": ["catalog"] },
+	  "categories": [
     {
       "id": %q,
       "title": "Direct Node single project",
@@ -154,7 +155,7 @@ func TestProvisionedToolchainTenantPassesTheConformanceVerifier(t *testing.T) {
 		return canonical.Sum256Hex([]byte(contents))
 	}
 	manifest := fmt.Sprintf(`{
-  "schemaVersion": 2,
+	  "schemaVersion": 3,
   "home": { "repository": "t33n-software/repository-governance", "sha": %q },
   "class": { "qualityGates": "linux-only", "codeScanning": false, "licenseHub": false },
   "callers": [
@@ -178,7 +179,6 @@ func TestProvisionedToolchainTenantPassesTheConformanceVerifier(t *testing.T) {
       { "family": "vitest", "path": "vitest.config.ts", "sha256": %q },
       { "family": "tsdown", "path": "tsdown.config.ts", "sha256": %q }
     ],
-    "pnpmWorkspace": { "path": "pnpm-workspace.yaml" },
     "sourceRoots": ["src"]
   }
 }`,
@@ -213,6 +213,7 @@ func TestProvisionedToolchainTenantPassesTheConformanceVerifier(t *testing.T) {
 	tenantData := map[string]string{
 		"repo-bindings.json":             manifest,
 		"git-governance.quality.json":    quality,
+		"package.json":                   "{\"packageManager\": \"pnpm@12.17.0\"}\n",
 		"go.mod":                         "module example.test/tenant\n\ngo 1.26.6\n\ntoolchain go1.26.6\n",
 		filepath.Join("tools", "go.mod"): "module example.test/tenant/tools\n\ngo 1.26.6\n",
 	}

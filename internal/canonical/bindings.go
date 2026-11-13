@@ -17,11 +17,12 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"sort"
 )
 
 // BindingsSchemaVersion is the canonical repo-bindings schema version
 // published by this home.
-const BindingsSchemaVersion = 2
+const BindingsSchemaVersion = 3
 
 // QualitySchemaVersion is the config-seam schema version this verifier proves.
 const QualitySchemaVersion = 4
@@ -32,13 +33,34 @@ const (
 	maxArtifactCount = 32
 )
 
-// configArtifactFamilies is the closed set of byte-identity config families
-// the verifier proves; the pnpm family is the class-four policy proof and
-// binds through PnpmWorkspace instead.
-var configArtifactFamilies = map[string]struct{}{
+// byteIdentityArtifactFamilies is the closed set of byte-identity config
+// families the verifier proves; the workspace document of the derived
+// package manager is the class-four policy proof and binds through the
+// registry's derivation block instead — never through an artifact row,
+// because a second binding path for one file is a double truth.
+var byteIdentityArtifactFamilies = map[string]struct{}{
 	"tsconfig": {},
 	"vitest":   {},
 	"tsdown":   {},
+	"eslint":   {},
+}
+
+// compositionArtifactFamilies is the closed set of composition config
+// families: the tenant file renders from an ordered fragment list of its
+// provenance home and proves the rendered governed region byte-exact.
+var compositionArtifactFamilies = map[string]struct{}{
+	"vscodeignore": {},
+}
+
+// distributionClasses is the closed artifact-class axis of the manifest: the
+// distribution shape the fleet's declaration-coupling proofs bind against.
+// It is a selection, not a fact: no ecosystem contract file declares it.
+var distributionClasses = map[string]struct{}{
+	"library":          {},
+	"cli":              {},
+	"vscode-extension": {},
+	"container-image":  {},
+	"reference-hub":    {},
 }
 
 var (
@@ -49,7 +71,35 @@ var (
 	callerFilePattern = regexp.MustCompile(`^\.github/workflows/[a-z0-9-]+\.yml$`)
 	masterPattern     = regexp.MustCompile(`^hosting-platforms/github/workflows/callers/[a-z0-9-]+/[a-z0-9-]+\.yml$`)
 	categoryPattern   = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*){0,2}$`)
+	kebabNamePattern  = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 )
+
+// ArtifactFamilies lists the closed artifact family sets the decoder accepts:
+// the byte-identity families and the composition families, each sorted. The
+// home's contract test proves the schema's family enum equals this union, so
+// schema and decoder can never drift apart in one direction.
+func ArtifactFamilies() (byteIdentity []string, composition []string) {
+	byteIdentity = sortedKeys(byteIdentityArtifactFamilies)
+	composition = sortedKeys(compositionArtifactFamilies)
+	return byteIdentity, composition
+}
+
+// DistributionClasses lists the closed artifact-class axis the decoder
+// accepts, sorted. The home's contract test proves the schema's distribution
+// enum equals this set through the same lockstep direction.
+func DistributionClasses() []string {
+	return sortedKeys(distributionClasses)
+}
+
+// sortedKeys returns the map keys in sorted order for deterministic proofs.
+func sortedKeys(set map[string]struct{}) []string {
+	keys := make([]string, 0, len(set))
+	for key := range set {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
 
 // HomePin binds the home repository coordinate and its release identity. The
 // SHA is the trust anchor; the version is documentation.
@@ -65,6 +115,10 @@ type Class struct {
 	CodeScanning bool
 	LicenseHub   bool
 }
+
+// Distribution binds the optional artifact-class axis; the empty string
+// declares no distribution class and skips the declaration-coupling proofs.
+const DistributionUnset = ""
 
 // CallerBinding binds one tenant caller to its canonical master and hash.
 type CallerBinding struct {
@@ -138,39 +192,40 @@ type RegistryPin struct {
 	SHA256 string
 }
 
-// ArtifactBinding binds one byte-identical config artifact topic: the tenant
-// path, its config family, and the content hash the verifier proves against
-// both the tenant file and the pinned territory artifact.
+// ArtifactBinding binds one config artifact topic: the tenant path, its
+// config family, the content hash the verifier proves against both the tenant
+// file and the pinned artifact of the provenance home, the optional
+// provenance home (an empty home binds the toolchain territory), and the
+// ordered composition fragment list of a composition family.
 type ArtifactBinding struct {
-	Family string
-	Path   string
-	SHA256 string
-}
-
-// PnpmWorkspaceBinding binds the tenant's pnpm workspace document path; the
-// policy invariants are proven against the territory's fortress baseline.
-type PnpmWorkspaceBinding struct {
-	Path string
+	Family    string
+	Path      string
+	SHA256    string
+	Home      string
+	Fragments []string
 }
 
 // ToolchainBindings binds the territory config topics. A nil binding skips
 // every config-topic proof for tenants that carry no category binding; a
 // binding without the seam's category declaration is a finding, never a
-// silent state.
+// silent state. The binding carries selections only: the package manager and
+// the workspace document path are derived from the ecosystem package contract
+// and the tool's own resolution rule, never declared here.
 type ToolchainBindings struct {
-	Territory     TerritoryPin
-	Registry      RegistryPin
-	Category      string
-	Artifacts     []ArtifactBinding
-	PnpmWorkspace PnpmWorkspaceBinding
-	SourceRoots   []string
+	Territory   TerritoryPin
+	Registry    RegistryPin
+	Category    string
+	Artifacts   []ArtifactBinding
+	SourceRoots []string
 }
 
-// Bindings is the tenant's canonical binding manifest (repo-bindings/v1).
+// Bindings is the tenant's canonical binding manifest (repo-bindings/v3).
+// Distribution carries the optional artifact-class axis.
 type Bindings struct {
 	SchemaVersion int
 	Home          HomePin
 	Class         Class
+	Distribution  string
 	Callers       []CallerBinding
 	Files         FileBindings
 	Codeowners    CodeownersBinding
@@ -190,6 +245,7 @@ type bindingsDocument struct {
 	SchemaVersion int              `json:"schemaVersion"`
 	Home          homeJSON         `json:"home"`
 	Class         classJSON        `json:"class"`
+	Distribution  string           `json:"distribution"`
 	Callers       []callerJSON     `json:"callers"`
 	Files         filesJSON        `json:"files"`
 	Codeowners    codeownersJSON   `json:"codeowners"`
@@ -268,22 +324,19 @@ type registryJSON struct {
 }
 
 type artifactJSON struct {
-	Family string `json:"family"`
-	Path   string `json:"path"`
-	SHA256 string `json:"sha256"`
-}
-
-type pnpmWorkspaceJSON struct {
-	Path string `json:"path"`
+	Family    string   `json:"family"`
+	Path      string   `json:"path"`
+	SHA256    string   `json:"sha256"`
+	Home      string   `json:"home"`
+	Fragments []string `json:"fragments"`
 }
 
 type toolchainJSON struct {
-	Territory     territoryJSON     `json:"territory"`
-	Registry      registryJSON      `json:"registry"`
-	Category      string            `json:"category"`
-	Artifacts     []artifactJSON    `json:"artifacts"`
-	PnpmWorkspace pnpmWorkspaceJSON `json:"pnpmWorkspace"`
-	SourceRoots   []string          `json:"sourceRoots"`
+	Territory   territoryJSON  `json:"territory"`
+	Registry    registryJSON   `json:"registry"`
+	Category    string         `json:"category"`
+	Artifacts   []artifactJSON `json:"artifacts"`
+	SourceRoots []string       `json:"sourceRoots"`
 }
 
 // DecodeBindings strictly decodes and validates the canonical binding
@@ -317,6 +370,9 @@ func validateDocument(document bindingsDocument) (Bindings, error) {
 		return Bindings{}, err
 	}
 	if err := validateClass(document.Class); err != nil {
+		return Bindings{}, err
+	}
+	if err := validateDistribution(document.Distribution); err != nil {
 		return Bindings{}, err
 	}
 	if err := validateFiles(document.Files); err != nil {
@@ -364,7 +420,8 @@ func validateDocument(document bindingsDocument) (Bindings, error) {
 			CodeScanning: document.Class.CodeScanning,
 			LicenseHub:   document.Class.LicenseHub,
 		},
-		Callers: callers,
+		Distribution: document.Distribution,
+		Callers:      callers,
 		Files: FileBindings{
 			Lefthook:      FileBinding(document.Files.Lefthook),
 			Gitattributes: FileBinding(document.Files.Gitattributes),
@@ -408,6 +465,18 @@ func validateClass(class classJSON) error {
 	default:
 		return fmt.Errorf("class.qualityGates must be full, linux-only, or pending: %q", class.QualityGates)
 	}
+}
+
+// validateDistribution validates the optional artifact-class axis; an empty
+// axis declares no class and is valid.
+func validateDistribution(distribution string) error {
+	if distribution == DistributionUnset {
+		return nil
+	}
+	if _, known := distributionClasses[distribution]; !known {
+		return fmt.Errorf("distribution must be library, cli, vscode-extension, container-image, or reference-hub: %q", distribution)
+	}
+	return nil
 }
 
 func validateCallers(callers []callerJSON) ([]CallerBinding, error) {
@@ -546,8 +615,10 @@ func validateToolchain(toolchain *toolchainJSON) (*ToolchainBindings, error) {
 	seen := make(map[string]struct{}, len(toolchain.Artifacts))
 	artifacts := make([]ArtifactBinding, 0, len(toolchain.Artifacts))
 	for _, artifact := range toolchain.Artifacts {
-		if _, known := configArtifactFamilies[artifact.Family]; !known {
-			return nil, fmt.Errorf("toolchain.artifacts family must be tsconfig, vitest, or tsdown: %q", artifact.Family)
+		_, byteIdentity := byteIdentityArtifactFamilies[artifact.Family]
+		_, composition := compositionArtifactFamilies[artifact.Family]
+		if !byteIdentity && !composition {
+			return nil, fmt.Errorf("toolchain.artifacts family must be eslint, tsconfig, tsdown, vitest, or vscodeignore: %q", artifact.Family)
 		}
 		if err := validateManifestPath("toolchain.artifacts.path", artifact.Path); err != nil {
 			return nil, err
@@ -555,15 +626,23 @@ func validateToolchain(toolchain *toolchainJSON) (*ToolchainBindings, error) {
 		if !hashPattern.MatchString(artifact.SHA256) {
 			return nil, fmt.Errorf("toolchain.artifacts sha256 for the family %s must be a lowercase SHA-256 hex digest", artifact.Family)
 		}
+		if artifact.Home != "" && !kebabNamePattern.MatchString(artifact.Home) {
+			return nil, fmt.Errorf("toolchain.artifacts home for the family %s must be a lowercase kebab repository name: %q", artifact.Family, artifact.Home)
+		}
+		if byteIdentity && len(artifact.Fragments) > 0 {
+			return nil, fmt.Errorf("toolchain.artifacts fragments bind only on composition families, not on the byte-identity family %q", artifact.Family)
+		}
+		if composition {
+			if err := validateCompositionFragments(artifact.Fragments); err != nil {
+				return nil, fmt.Errorf("toolchain.artifacts fragments for the family %s %s", artifact.Family, err)
+			}
+		}
 		key := artifact.Family + "/" + artifact.Path
 		if _, found := seen[key]; found {
 			return nil, fmt.Errorf("toolchain.artifacts must not repeat a family and path: %q", key)
 		}
 		seen[key] = struct{}{}
 		artifacts = append(artifacts, ArtifactBinding(artifact))
-	}
-	if err := validateManifestPath("toolchain.pnpmWorkspace.path", toolchain.PnpmWorkspace.Path); err != nil {
-		return nil, err
 	}
 	seenRoots := make(map[string]struct{}, len(toolchain.SourceRoots))
 	sourceRoots := make([]string, 0, len(toolchain.SourceRoots))
@@ -586,11 +665,33 @@ func validateToolchain(toolchain *toolchainJSON) (*ToolchainBindings, error) {
 			Path:   toolchain.Registry.Path,
 			SHA256: toolchain.Registry.SHA256,
 		},
-		Category:      toolchain.Category,
-		Artifacts:     artifacts,
-		PnpmWorkspace: PnpmWorkspaceBinding{Path: toolchain.PnpmWorkspace.Path},
-		SourceRoots:   sourceRoots,
+		Category:    toolchain.Category,
+		Artifacts:   artifacts,
+		SourceRoots: sourceRoots,
 	}, nil
+}
+
+// validateCompositionFragments binds the composition fragment list form: a
+// non-empty list, the composition core first, every name in the kebab
+// fragment grammar, and no duplicates.
+func validateCompositionFragments(fragments []string) error {
+	if len(fragments) == 0 {
+		return errors.New("must contain at least the core fragment")
+	}
+	if fragments[0] != "core" {
+		return fmt.Errorf("must begin with the core fragment, got %q", fragments[0])
+	}
+	seen := make(map[string]struct{}, len(fragments))
+	for _, fragment := range fragments {
+		if !kebabNamePattern.MatchString(fragment) {
+			return fmt.Errorf("must be a canonical fragment name, got %q", fragment)
+		}
+		if _, found := seen[fragment]; found {
+			return fmt.Errorf("must not repeat a fragment, got %q", fragment)
+		}
+		seen[fragment] = struct{}{}
+	}
+	return nil
 }
 
 // validateManifestPath rejects absolute paths, parent traversal, and

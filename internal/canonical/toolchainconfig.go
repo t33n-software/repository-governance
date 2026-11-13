@@ -20,11 +20,6 @@ const territoryConfigRoot = "configs"
 // whose invariants the single-project lanes guard.
 const deliveryLaneLeafPath = "tsconfig.node.json"
 
-// pnpmCatalogKey is the tenant-owned catalog key of the pnpm workspace
-// document: its existence is governed, its content is the tenant's approved
-// version set.
-const pnpmCatalogKey = "catalog"
-
 // categoryProofContract is the proof map of one registry entry.
 type categoryProofContract struct {
 	BaseByteIdentity bool     `json:"baseByteIdentity"`
@@ -43,9 +38,14 @@ type categoryRegistryEntry struct {
 // categoryRegistryInstance is the decoded wire form of the pinned territory
 // registry instance. The instance is hash-pinned by the binding; the decode
 // carries the fields the verifier proves with and tolerates additive
-// territory-owned fields.
+// territory-owned fields. Derivation is the territory's declaration of how
+// the fleet derives the package-manager identity and the conditional
+// workspace document from the ecosystem package contract: the fleet carries
+// the readers, the territory carries the facts, the binding manifest carries
+// the selection.
 type categoryRegistryInstance struct {
 	SchemaVersion int                     `json:"schemaVersion"`
+	Derivation    *DerivationContract     `json:"derivation"`
 	Categories    []categoryRegistryEntry `json:"categories"`
 }
 
@@ -62,12 +62,6 @@ type tsconfigDocument struct {
 // without a mapping table.
 func categoryTerritoryDir(family, category string) string {
 	return territoryConfigRoot + "/" + family + "/" + category + "/"
-}
-
-// territoryPnpmBaselinePath derives the territory-relative path of the pnpm
-// fortress baseline: the family-root form, category-independent.
-func territoryPnpmBaselinePath() string {
-	return territoryConfigRoot + "/pnpm/pnpm-workspace.base.yaml"
 }
 
 // categoryRegistryLookup resolves the declared category's registry entry; a
@@ -115,6 +109,10 @@ func (v Verifier) verifyToolchainConfig(bindings Bindings, seam qualityConfigDoc
 	if err != nil {
 		return []Finding{mismatchFinding(check, err.Error())}
 	}
+	if instance.Derivation == nil {
+		return []Finding{mismatchFinding(check,
+			"the pinned registry carries no derivation block; the package-manager identity has no declared owner surface")}
+	}
 	entry := categoryRegistryLookup(instance, toolchain.Category)
 	if entry == nil {
 		return []Finding{mismatchFinding(check,
@@ -124,8 +122,34 @@ func (v Verifier) verifyToolchainConfig(bindings Bindings, seam qualityConfigDoc
 	findings := make([]Finding, 0)
 	findings = append(findings, v.verifyConfigArtifacts(check, *entry, toolchain.Category, toolchain.Artifacts)...)
 	findings = append(findings, v.verifyConfigDeliveryLane(check, toolchain)...)
-	findings = append(findings, v.verifyConfigPnpmWorkspace(check, *toolchain)...)
+	workspacePath, identityFindings := v.deriveWorkspaceDocumentPath(check, instance.Derivation)
+	if len(identityFindings) > 0 {
+		return append(findings, identityFindings...)
+	}
+	if workspacePath != "" {
+		findings = append(findings, v.verifyConfigPnpmWorkspace(check, workspacePath, instance.Derivation)...)
+	}
 	return findings
+}
+
+// deriveWorkspaceDocumentPath reads the ecosystem package contract declared
+// by the territory's derivation block and derives the package-manager
+// identity from it. The derivation is fail-closed: a missing contract
+// document, a missing identity declaration, or a malformed declaration is a
+// finding, never a silent state. The binding manifest carries no
+// package-manager field to fall back on, so the ecosystem contract is the
+// only truth source by construction. An empty path declares that the derived
+// tool carries no workspace document and the policy proof is skipped.
+func (v Verifier) deriveWorkspaceDocumentPath(check string, derivation *DerivationContract) (string, []Finding) {
+	contents, err := v.ReadTenant(derivation.ContractFile)
+	if err != nil {
+		return "", []Finding{readErrorFinding(check, derivation.ContractFile, err)}
+	}
+	identity, err := derivePackageManager(contents, *derivation)
+	if err != nil {
+		return "", []Finding{mismatchFinding(check, err.Error())}
+	}
+	return workspaceDocumentPath(identity, derivation.WorkspaceFiles), nil
 }
 
 // pinnedCategoryRegistry reads and proves the pinned registry instance
@@ -151,6 +175,11 @@ func pinnedCategoryRegistry(read func(path string) ([]byte, error), pin Registry
 	if len(instance.Categories) == 0 {
 		return instance, fmt.Errorf("the pinned registry carries no categories")
 	}
+	if instance.Derivation != nil {
+		if err := validateDerivation(*instance.Derivation); err != nil {
+			return instance, fmt.Errorf("the pinned registry derivation block is invalid: %w", err)
+		}
+	}
 	return instance, nil
 }
 
@@ -162,6 +191,11 @@ func pinnedCategoryRegistry(read func(path string) ([]byte, error), pin Registry
 func (v Verifier) verifyConfigArtifacts(check string, entry categoryRegistryEntry, category string, artifacts []ArtifactBinding) []Finding {
 	findings := make([]Finding, 0)
 	for _, artifact := range artifacts {
+		if _, composition := compositionArtifactFamilies[artifact.Family]; composition {
+			findings = append(findings, mismatchFinding(check,
+				fmt.Sprintf("the verifier carries no implemented composition proof for the family %q yet", artifact.Family)))
+			continue
+		}
 		dir, mapped := entry.Artifacts[artifact.Family]
 		if !mapped {
 			findings = append(findings, mismatchFinding(check,
@@ -278,22 +312,25 @@ func includeCoversRoot(entry, root string) bool {
 	return strings.HasPrefix(normalized, root+"/")
 }
 
-// verifyConfigPnpmWorkspace proves the pnpm workspace document's policy
-// invariants (class four with class-three elements): every governed key of
-// the territory's fortress baseline must carry the exact baseline value in
-// the tenant document; the catalog key must exist while its content stays
-// the tenant's approved version set.
-func (v Verifier) verifyConfigPnpmWorkspace(check string, toolchain ToolchainBindings) []Finding {
-	tenantContents, err := v.ReadTenant(toolchain.PnpmWorkspace.Path)
+// verifyConfigPnpmWorkspace proves the workspace document's policy invariants
+// (class four with class-three elements): every governed key of the
+// territory's fortress baseline must carry the exact baseline value in the
+// tenant document, while the territory-declared tenant-owned keys must exist
+// with content that stays the tenant's own approved set. The document path,
+// the baseline path, and the tenant-owned key list all come from the pinned
+// registry's derivation block — never from the binding manifest and never
+// from a fleet-side constant.
+func (v Verifier) verifyConfigPnpmWorkspace(check string, workspacePath string, derivation *DerivationContract) []Finding {
+	tenantContents, err := v.ReadTenant(workspacePath)
 	if err != nil {
-		return []Finding{readErrorFinding(check, toolchain.PnpmWorkspace.Path, err)}
+		return []Finding{readErrorFinding(check, workspacePath, err)}
 	}
 	var tenant map[string]any
 	if err := yaml.Unmarshal(tenantContents, &tenant); err != nil {
 		return []Finding{mismatchFinding(check,
-			fmt.Sprintf("the tenant %s must be a valid YAML mapping: %v", toolchain.PnpmWorkspace.Path, err))}
+			fmt.Sprintf("the tenant %s must be a valid YAML mapping: %v", workspacePath, err))}
 	}
-	baselinePath := territoryPnpmBaselinePath()
+	baselinePath := derivation.BaselineFile
 	baselineContents, err := v.ReadTerritory(baselinePath)
 	if err != nil {
 		return []Finding{readErrorFinding(check, baselinePath, err)}
@@ -303,21 +340,25 @@ func (v Verifier) verifyConfigPnpmWorkspace(check string, toolchain ToolchainBin
 		return []Finding{mismatchFinding(check,
 			fmt.Sprintf("the territory baseline %s must be a valid YAML mapping: %v", baselinePath, err))}
 	}
+	tenantOwned := make(map[string]struct{}, len(derivation.TenantOwnedKeys))
+	for _, key := range derivation.TenantOwnedKeys {
+		tenantOwned[key] = struct{}{}
+	}
 	findings := make([]Finding, 0)
 	for _, key := range sortedYAMLKeys(baseline) {
 		guarded := baseline[key]
 		value, found := tenant[key]
 		if !found {
 			findings = append(findings, mismatchFinding(check,
-				fmt.Sprintf("the tenant %s misses the governed key %q", toolchain.PnpmWorkspace.Path, key)))
+				fmt.Sprintf("the tenant %s misses the governed key %q", workspacePath, key)))
 			continue
 		}
-		if key == pnpmCatalogKey {
+		if _, owned := tenantOwned[key]; owned {
 			continue
 		}
 		if !reflect.DeepEqual(value, guarded) {
 			findings = append(findings, mismatchFinding(check,
-				fmt.Sprintf("the tenant %s carries %s = %v, but the fortress baseline binds %v", toolchain.PnpmWorkspace.Path, key, value, guarded)))
+				fmt.Sprintf("the tenant %s carries %s = %v, but the fortress baseline binds %v", workspacePath, key, value, guarded)))
 		}
 	}
 	return findings

@@ -99,7 +99,8 @@ func provisionTestBindings(t *testing.T, conventions *ConventionsBinding) Bindin
 }
 
 // passingProvisionFixture carries a fixture home whose every master hash
-// matches the binding set of provisionTestBindings.
+// matches the binding set of provisionTestBindings, and a tenant tree whose
+// ecosystem package contract declares the pnpm identity the derivation reads.
 func passingProvisionFixture(t *testing.T) *provisionFixture {
 	t.Helper()
 	homeContents := map[string][]byte{
@@ -112,7 +113,12 @@ func passingProvisionFixture(t *testing.T) *provisionFixture {
 	for path, contents := range gitignoreFixtureHome() {
 		homeContents[path] = contents
 	}
-	return &provisionFixture{homeContents: homeContents}
+	return &provisionFixture{
+		homeContents: homeContents,
+		tenantContents: map[string][]byte{
+			"package.json": []byte("{\"packageManager\": \"pnpm@12.17.0\"}\n"),
+		},
+	}
 }
 
 // materialByPath returns the materialization of one tenant path.
@@ -433,6 +439,9 @@ func TestNewProvisionerBindsProductionSeams(t *testing.T) {
 		}
 	}
 
+	if err := os.WriteFile(filepath.Join(tenant, "package.json"), []byte("{\"packageManager\": \"pnpm@12.17.0\"}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	bindings := provisionTestBindings(t, nil)
 	bindings.Toolchain = provisionTestToolchain(t)
 	materials, err := NewProvisioner(tenant, home, territory).Apply(bindings)
@@ -466,8 +475,9 @@ const toolchainCategory = "single-project/direct-node"
 // config artifacts, and pnpm baseline match provisionTestToolchain.
 func territoryFixtureContents() map[string][]byte {
 	registry := []byte(`{
-  "schemaVersion": 1,
-  "categories": [
+	  "schemaVersion": 1,
+	  "derivation": { "contractFile": "package.json", "format": "json", "identity": { "field": "packageManager", "form": "corepack" }, "workspaceFiles": { "pnpm": "pnpm-workspace.yaml" }, "baselineFile": "configs/pnpm/pnpm-workspace.base.yaml", "tenantOwnedKeys": ["catalog"] },
+	  "categories": [
     {
       "id": "single-project/direct-node",
       "title": "Direct Node single project",
@@ -506,8 +516,7 @@ func provisionTestToolchain(t *testing.T) *ToolchainBindings {
 			{Family: "vitest", Path: "vitest.config.ts", SHA256: hash("configs/vitest/" + toolchainCategory + "/vitest.config.ts")},
 			{Family: "tsdown", Path: "tsdown.config.ts", SHA256: hash("configs/tsdown/" + toolchainCategory + "/tsdown.config.ts")},
 		},
-		PnpmWorkspace: PnpmWorkspaceBinding{Path: "pnpm-workspace.yaml"},
-		SourceRoots:   []string{"src"},
+		SourceRoots: []string{"src"},
 	}
 }
 
@@ -593,8 +602,9 @@ func TestPlanToolchainArtifacts(t *testing.T) {
 		// The registry maps the vitest family to the tsconfig folder while
 		// the category identity derives configs/vitest/<category>/.
 		diverged := []byte(`{
-  "schemaVersion": 1,
-  "categories": [
+		"schemaVersion": 1,
+		"derivation": { "contractFile": "package.json", "format": "json", "identity": { "field": "packageManager", "form": "corepack" }, "workspaceFiles": { "pnpm": "pnpm-workspace.yaml" }, "baselineFile": "configs/pnpm/pnpm-workspace.base.yaml", "tenantOwnedKeys": ["catalog"] },
+		"categories": [
     {
       "id": "single-project/direct-node",
       "title": "Direct Node single project",
@@ -636,6 +646,51 @@ func TestPlanToolchainArtifacts(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+
+	t.Run("rejects a composition family without an implemented render", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		bindings := provisionToolchainBindings(t)
+		bindings.Toolchain.Artifacts = append(bindings.Toolchain.Artifacts, ArtifactBinding{
+			Family:    "vscodeignore",
+			Path:      ".vscodeignore",
+			SHA256:    strings.Repeat("e", 64),
+			Home:      "vscode-extension-governance",
+			Fragments: []string{"core", "node"},
+		})
+		_, err := fixture.provisioner().Plan(bindings)
+		if err == nil || !strings.Contains(err.Error(), `no implemented composition render for the family "vscodeignore"`) {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("an npm identity skips the workspace composition", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		fixture.tenantContents["package.json"] = []byte("{\"packageManager\": \"npm@11.20.0\"}\n")
+		materials, err := fixture.provisioner().Plan(provisionToolchainBindings(t))
+		if err != nil {
+			t.Fatalf("Plan: %v", err)
+		}
+		if len(materials) != 9 {
+			t.Fatalf("materials = %d, want 9 without the workspace document", len(materials))
+		}
+		for _, material := range materials {
+			if material.Path == "pnpm-workspace.yaml" {
+				t.Fatal("a non-pnpm identity must not materialize the pnpm workspace document")
+			}
+		}
+	})
+
+	t.Run("rejects a contract without a package-manager declaration", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		fixture.tenantContents["package.json"] = []byte("{}\n")
+		_, err := fixture.provisioner().Plan(provisionToolchainBindings(t))
+		if err == nil || !strings.Contains(err.Error(), `carries no "packageManager" declaration`) {
+			t.Fatalf("err = %v", err)
+		}
+	})
 }
 
 func TestPlanPnpmWorkspace(t *testing.T) {
@@ -658,9 +713,7 @@ func TestPlanPnpmWorkspace(t *testing.T) {
 	t.Run("preserves the tenant keys and heals the governed keys", func(t *testing.T) {
 		fixture := passingProvisionFixture(t)
 		fixture.territoryContents = territoryFixtureContents()
-		fixture.tenantContents = map[string][]byte{
-			"pnpm-workspace.yaml": []byte("catalog:\n  react: 19.0.0\ncatalogMode: loose\npackages:\n  - apps/*\n"),
-		}
+		fixture.tenantContents["pnpm-workspace.yaml"] = []byte("catalog:\n  react: 19.0.0\ncatalogMode: loose\npackages:\n  - apps/*\n")
 		materials, err := fixture.provisioner().Plan(provisionToolchainBindings(t))
 		if err != nil {
 			t.Fatalf("Plan: %v", err)
@@ -675,9 +728,7 @@ func TestPlanPnpmWorkspace(t *testing.T) {
 	t.Run("rejects an unparseable tenant document", func(t *testing.T) {
 		fixture := passingProvisionFixture(t)
 		fixture.territoryContents = territoryFixtureContents()
-		fixture.tenantContents = map[string][]byte{
-			"pnpm-workspace.yaml": []byte("just a scalar\n"),
-		}
+		fixture.tenantContents["pnpm-workspace.yaml"] = []byte("just a scalar\n")
 		_, err := fixture.provisioner().Plan(provisionToolchainBindings(t))
 		if err == nil || !strings.Contains(err.Error(), "must be a valid YAML mapping; unparseable content is never overwritten") {
 			t.Fatalf("err = %v", err)
@@ -704,7 +755,23 @@ func TestPlanPnpmWorkspace(t *testing.T) {
 		}
 	})
 
-	t.Run("propagates a tenant read error", func(t *testing.T) {
+	t.Run("propagates a contract read error", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		provisioner := fixture.provisioner()
+		provisioner.ReadTenant = func(path string) ([]byte, error) {
+			if path == "package.json" {
+				return nil, errors.New("boom")
+			}
+			return nil, fs.ErrNotExist
+		}
+		_, err := provisioner.Plan(provisionToolchainBindings(t))
+		if err == nil || !strings.Contains(err.Error(), "read the ecosystem package contract package.json: boom") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("propagates a workspace document read error", func(t *testing.T) {
 		fixture := passingProvisionFixture(t)
 		fixture.territoryContents = territoryFixtureContents()
 		provisioner := fixture.provisioner()
@@ -712,10 +779,27 @@ func TestPlanPnpmWorkspace(t *testing.T) {
 			if path == "pnpm-workspace.yaml" {
 				return nil, errors.New("boom")
 			}
-			return nil, fs.ErrNotExist
+			contents, found := fixture.tenantContents[path]
+			if !found {
+				return nil, fs.ErrNotExist
+			}
+			return contents, nil
 		}
 		_, err := provisioner.Plan(provisionToolchainBindings(t))
 		if err == nil || !strings.Contains(err.Error(), "read the tenant pnpm-workspace.yaml: boom") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+
+	t.Run("rejects a registry without a derivation block", func(t *testing.T) {
+		fixture := passingProvisionFixture(t)
+		fixture.territoryContents = territoryFixtureContents()
+		registry := []byte(`{"schemaVersion":1,"categories":[{"id":"single-project/direct-node","artifacts":{}}]}`)
+		fixture.territoryContents["configs/registry.json"] = registry
+		bindings := provisionToolchainBindings(t)
+		bindings.Toolchain.Registry.SHA256 = Sum256Hex(registry)
+		_, err := fixture.provisioner().Plan(bindings)
+		if err == nil || !strings.Contains(err.Error(), "no derivation block") {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -737,8 +821,11 @@ func TestApplyToolchainWritesTheProvenMaterializations(t *testing.T) {
 	}
 
 	// The composed re-render is idempotent: feeding the written bytes back
-	// through the tenant read seam composes the same document again.
+	// through the tenant read seam composes the same document again. The
+	// ecosystem package contract is tenant-authored data the provisioner
+	// never writes, so it survives the swap explicitly.
 	fixture.tenantContents = fixture.written
+	fixture.tenantContents["package.json"] = []byte("{\"packageManager\": \"pnpm@12.17.0\"}\n")
 	fixture.written = nil
 	repeated, err := fixture.provisioner().Apply(bindings)
 	if err != nil {

@@ -21,7 +21,7 @@ conformance verifier (`cmd/verify-canonical`) — the proof of carrying.
 | Canonical files | `hosting-platforms/github/files/` | The class-C content family (byte-identical or rendered) |
 | Conformance verifier | `cmd/verify-canonical/` | The fail-closed proof-of-carrying engine |
 | Provisioning CLI | `cmd/provision-canonical/` | The write exposure of the render core — provisions a tenant's canonical surfaces and the territory config artifacts of a bound toolchain section from the binding manifest |
-| Verifier schemas | `schemas/{repo-bindings,caller-hashes}/v1/` | The versioned binding-manifest and hash-record contracts |
+| Verifier schemas | `schemas/repo-bindings/`, `schemas/caller-hashes/v1/` | The versioned binding-manifest and hash-record contracts |
 | Conformance vectors | `conformance/{positive,negative}/` | The proof set for the binding-manifest decoder |
 
 ## Consumption
