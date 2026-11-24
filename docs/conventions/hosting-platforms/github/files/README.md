@@ -4,6 +4,11 @@ This area carries the binding conventions for the canonical file family of
 this home (`hosting-platforms/github/files/`): how composed topics are
 rendered, proven, bound, and rolled out.
 
+The model-level admission laws that bind what a fragment pattern may be and
+how the fragment catalog may change live in the sibling area
+[`../../../canonical-file-family/README.md`](../../../canonical-file-family/README.md);
+the mechanics documents here satisfy those laws and do not define them.
+
 ## Conventions
 
 | Document | Rule |
