@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "home": {
     "repository": "t33n-software/repository-governance",
     "version": "v1.0.0",
@@ -41,9 +41,8 @@
     "registry": { "path": "configs/registry.json", "sha256": "1111111111111111111111111111111111111111111111111111111111111111" },
     "category": "single-project/bundler-owned",
     "artifacts": [
-      { "family": "eslint", "path": "tsconfig.base.json", "sha256": "2222222222222222222222222222222222222222222222222222222222222222" }
+      { "family": "webpack", "path": "tsconfig.base.json", "sha256": "2222222222222222222222222222222222222222222222222222222222222222" }
     ],
-    "pnpmWorkspace": { "path": "pnpm-workspace.yaml" },
     "sourceRoots": ["src"]
   }
 }

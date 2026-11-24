@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
 	"testing"
 
@@ -14,6 +16,7 @@ func TestSchemasConform(t *testing.T) {
 	schemas := []string{
 		"schemas/repo-bindings/v1/repo-bindings.schema.json",
 		"schemas/repo-bindings/v2/repo-bindings.schema.json",
+		"schemas/repo-bindings/v3/repo-bindings.schema.json",
 		"schemas/caller-hashes/v1/caller-hashes.schema.json",
 	}
 	for _, schema := range schemas {
@@ -49,6 +52,51 @@ func TestConformanceVectors(t *testing.T) {
 				t.Fatalf("negative vector %s must be rejected", name)
 			}
 		})
+	}
+}
+
+// TestRepoBindingsSchemaDecoderLockstep proves the bidirectional lockstep of
+// the v3 schema and the canonical decoder: every family enum value exists in
+// the decoder's closed family sets and every decoder family exists in the
+// enum; the same holds for the distribution axis. A one-sided entry is a
+// finding, so schema and decoder can never drift apart in either direction.
+func TestRepoBindingsSchemaDecoderLockstep(t *testing.T) {
+	contents := readArtifact(t, "schemas/repo-bindings/v3/repo-bindings.schema.json")
+	var schema struct {
+		Properties struct {
+			Distribution struct {
+				Enum []string `json:"enum"`
+			} `json:"distribution"`
+			Toolchain struct {
+				Properties struct {
+					Artifacts struct {
+						Items struct {
+							Properties struct {
+								Family struct {
+									Enum []string `json:"enum"`
+								} `json:"family"`
+							} `json:"properties"`
+						} `json:"items"`
+					} `json:"artifacts"`
+				} `json:"properties"`
+			} `json:"toolchain"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal([]byte(contents), &schema); err != nil {
+		t.Fatalf("the v3 schema is not valid JSON: %v", err)
+	}
+	byteIdentity, composition := canonical.ArtifactFamilies()
+	wantFamilies := append(append([]string{}, byteIdentity...), composition...)
+	sort.Strings(wantFamilies)
+	gotFamilies := append([]string{}, schema.Properties.Toolchain.Properties.Artifacts.Items.Properties.Family.Enum...)
+	sort.Strings(gotFamilies)
+	if !slices.Equal(gotFamilies, wantFamilies) {
+		t.Fatalf("the schema family enum %v diverges from the decoder families %v", gotFamilies, wantFamilies)
+	}
+	gotDistribution := append([]string{}, schema.Properties.Distribution.Enum...)
+	sort.Strings(gotDistribution)
+	if !slices.Equal(gotDistribution, canonical.DistributionClasses()) {
+		t.Fatalf("the schema distribution enum %v diverges from the decoder classes %v", gotDistribution, canonical.DistributionClasses())
 	}
 }
 

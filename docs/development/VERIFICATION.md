@@ -90,7 +90,7 @@ On a tenant pull request it proves, fail-closed:
    binding form: `docs/conventions/verification/repo-bindings-manifest-form.md`).
 
 The tenant's binding manifest (`repo-bindings.json`) is strictly decoded
-against `schemas/repo-bindings/v2/repo-bindings.schema.json`; the home's
+against `schemas/repo-bindings/v3/repo-bindings.schema.json`; the home's
 published caller hashes follow
 `schemas/caller-hashes/v1/caller-hashes.schema.json`; the
 `conformance/{positive,negative}/` vectors prove every acceptance and every

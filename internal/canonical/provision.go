@@ -218,17 +218,51 @@ func (p Provisioner) planConventions(bindings Bindings, materials []Materializat
 
 // planToolchain materializes the optional territory config-topic binding:
 // the byte-identity config artifacts from the pinned territory tree and the
-// composed pnpm workspace document. A nil binding skips the family for
-// tenants that bind no category.
+// composed workspace document of the derived package manager. A nil binding
+// skips the family for tenants that bind no category. The package-manager
+// identity is derived from the tenant's ecosystem package contract through
+// the territory's pinned derivation block — the same derivation the verifier
+// proves with — never read from the binding manifest. The registry instance
+// loads once for the whole family.
 func (p Provisioner) planToolchain(bindings Bindings, materials []Materialization) ([]Materialization, error) {
 	if bindings.Toolchain == nil {
 		return materials, nil
 	}
-	materials, err := p.planToolchainArtifacts(*bindings.Toolchain, materials)
+	instance, err := pinnedCategoryRegistry(p.ReadTerritory, bindings.Toolchain.Registry)
 	if err != nil {
 		return nil, err
 	}
-	return p.planPnpmWorkspace(*bindings.Toolchain, materials)
+	if instance.Derivation == nil {
+		return nil, errors.New("the pinned registry carries no derivation block; the package-manager identity has no declared owner surface")
+	}
+	materials, err = p.planToolchainArtifacts(instance, *bindings.Toolchain, materials)
+	if err != nil {
+		return nil, err
+	}
+	workspacePath, err := p.derivedWorkspacePath(instance, bindings.Toolchain)
+	if err != nil {
+		return nil, err
+	}
+	if workspacePath == "" {
+		return materials, nil
+	}
+	return p.planPnpmWorkspace(workspacePath, instance.Derivation, materials)
+}
+
+// derivedWorkspacePath reads the ecosystem package contract declared by the
+// territory's derivation block, derives the package-manager identity, and
+// resolves the conditional workspace document path. An empty path declares
+// that the derived tool carries no workspace document.
+func (p Provisioner) derivedWorkspacePath(instance categoryRegistryInstance, toolchain *ToolchainBindings) (string, error) {
+	contents, err := p.ReadTenant(instance.Derivation.ContractFile)
+	if err != nil {
+		return "", fmt.Errorf("read the ecosystem package contract %s: %w", instance.Derivation.ContractFile, err)
+	}
+	identity, err := derivePackageManager(contents, *instance.Derivation)
+	if err != nil {
+		return "", err
+	}
+	return workspaceDocumentPath(identity, instance.Derivation.WorkspaceFiles), nil
 }
 
 // planToolchainArtifacts materializes every byte-identity config artifact as
@@ -236,16 +270,15 @@ func (p Provisioner) planToolchain(bindings Bindings, materials []Materializatio
 // category's artifact mapping, and the territory artifact's hash must equal
 // the bound hash before the write — the same proof the verifier runs against
 // both trees after it.
-func (p Provisioner) planToolchainArtifacts(toolchain ToolchainBindings, materials []Materialization) ([]Materialization, error) {
-	instance, err := pinnedCategoryRegistry(p.ReadTerritory, toolchain.Registry)
-	if err != nil {
-		return nil, err
-	}
+func (p Provisioner) planToolchainArtifacts(instance categoryRegistryInstance, toolchain ToolchainBindings, materials []Materialization) ([]Materialization, error) {
 	entry := categoryRegistryLookup(instance, toolchain.Category)
 	if entry == nil {
 		return nil, fmt.Errorf("the pinned registry carries no entry for the declared category %q", toolchain.Category)
 	}
 	for _, artifact := range toolchain.Artifacts {
+		if _, composition := compositionArtifactFamilies[artifact.Family]; composition {
+			return nil, fmt.Errorf("the provisioner carries no implemented composition render for the family %q yet", artifact.Family)
+		}
 		dir, mapped := entry.Artifacts[artifact.Family]
 		if !mapped {
 			return nil, fmt.Errorf("the pinned registry entry carries no artifact mapping for the family %q", artifact.Family)
@@ -266,14 +299,15 @@ func (p Provisioner) planToolchainArtifacts(toolchain ToolchainBindings, materia
 	return materials, nil
 }
 
-// planPnpmWorkspace materializes the composed tenant pnpm workspace document:
-// every governed key of the territory's fortress baseline carries the exact
-// baseline value, and the tenant's own mapping keys — the catalog above all —
-// are preserved; a fresh tenant receives the baseline with an empty catalog.
-// The policy invariants, never a byte identity, are this family's proof form:
-// the composed re-render is what the verifier's class-four proof passes.
-func (p Provisioner) planPnpmWorkspace(toolchain ToolchainBindings, materials []Materialization) ([]Materialization, error) {
-	baselinePath := territoryPnpmBaselinePath()
+// planPnpmWorkspace materializes the composed tenant workspace document at
+// the derived path: every governed key of the territory's fortress baseline
+// carries the exact baseline value, and the tenant's own mapping keys — the
+// territory-declared tenant-owned keys above all — are preserved; a fresh
+// tenant receives the baseline with an empty tenant-owned mapping. The policy
+// invariants, never a byte identity, are this family's proof form: the
+// composed re-render is what the verifier's class-four proof passes.
+func (p Provisioner) planPnpmWorkspace(workspacePath string, derivation *DerivationContract, materials []Materialization) ([]Materialization, error) {
+	baselinePath := derivation.BaselineFile
 	baselineContents, err := p.ReadTerritory(baselinePath)
 	if err != nil {
 		return nil, fmt.Errorf("read the territory pnpm fortress baseline %s: %w", baselinePath, err)
@@ -283,24 +317,26 @@ func (p Provisioner) planPnpmWorkspace(toolchain ToolchainBindings, materials []
 		return nil, fmt.Errorf("the territory pnpm fortress baseline %s must be a valid YAML mapping: %w", baselinePath, err)
 	}
 	tenant := map[string]any{}
-	if existing, err := p.ReadTenant(toolchain.PnpmWorkspace.Path); err == nil {
+	if existing, err := p.ReadTenant(workspacePath); err == nil {
 		if err := yaml.Unmarshal(existing, &tenant); err != nil {
-			return nil, fmt.Errorf("the existing tenant %s must be a valid YAML mapping; unparseable content is never overwritten", toolchain.PnpmWorkspace.Path)
+			return nil, fmt.Errorf("the existing tenant %s must be a valid YAML mapping; unparseable content is never overwritten", workspacePath)
 		}
 	} else if !errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("read the tenant %s: %w", toolchain.PnpmWorkspace.Path, err)
+		return nil, fmt.Errorf("read the tenant %s: %w", workspacePath, err)
 	}
 	for _, key := range sortedYAMLKeys(baseline) {
 		tenant[key] = baseline[key]
 	}
-	if _, found := tenant[pnpmCatalogKey]; !found {
-		tenant[pnpmCatalogKey] = map[string]any{}
+	for _, key := range derivation.TenantOwnedKeys {
+		if _, found := tenant[key]; !found {
+			tenant[key] = map[string]any{}
+		}
 	}
 	// The composed mapping carries only YAML-decoded values with string
 	// keys, so the re-render cannot fail; its key order is deterministic.
 	composed, _ := yaml.Marshal(tenant)
 	materials = append(materials, Materialization{
-		Path:     toolchain.PnpmWorkspace.Path,
+		Path:     workspacePath,
 		Contents: composed,
 		Source:   "compose " + baselinePath,
 	})

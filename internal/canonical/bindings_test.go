@@ -8,7 +8,7 @@ import (
 // validBindingsJSON is the reference manifest every mutation starts from.
 func validBindingsJSON() string {
 	return `{
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "home": {
     "repository": "t33n-software/repository-governance",
     "version": "v1.0.0",
@@ -43,7 +43,7 @@ func TestDecodeBindingsAcceptsTheReferenceManifest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DecodeBindings: %v", err)
 	}
-	if bindings.SchemaVersion != 2 {
+	if bindings.SchemaVersion != 3 {
 		t.Fatalf("SchemaVersion = %d", bindings.SchemaVersion)
 	}
 	if bindings.Home.Repository != "t33n-software/repository-governance" {
@@ -169,13 +169,27 @@ func TestDecodeBindingsRejections(t *testing.T) {
 	}{
 		{
 			name:    "wrong schema version",
-			mutate:  func(doc string) string { return strings.Replace(doc, `"schemaVersion": 2`, `"schemaVersion": 1`, 1) },
-			message: "schemaVersion must equal 2",
+			mutate:  func(doc string) string { return strings.Replace(doc, `"schemaVersion": 3`, `"schemaVersion": 2`, 1) },
+			message: "schemaVersion must equal 3",
+		},
+		{
+			name: "unknown distribution",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"schemaVersion": 3,`, `"schemaVersion": 3, "distribution": "desktop-app",`, 1)
+			},
+			message: "distribution must be library, cli, vscode-extension, container-image, or reference-hub",
+		},
+		{
+			name: "valid distribution decodes",
+			mutate: func(doc string) string {
+				return strings.Replace(doc, `"schemaVersion": 3,`, `"schemaVersion": 3, "distribution": "cli",`, 1)
+			},
+			message: "",
 		},
 		{
 			name: "unknown field",
 			mutate: func(doc string) string {
-				return strings.Replace(doc, `"schemaVersion": 2,`, `"schemaVersion": 2, "bogus": true,`, 1)
+				return strings.Replace(doc, `"schemaVersion": 3,`, `"schemaVersion": 3, "bogus": true,`, 1)
 			},
 			message: "known fields",
 		},
@@ -372,6 +386,12 @@ func TestDecodeBindingsRejections(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := DecodeBindings([]byte(test.mutate(validBindingsJSON())))
+			if test.message == "" {
+				if err != nil {
+					t.Fatalf("expected acceptance, got %v", err)
+				}
+				return
+			}
 			if err == nil {
 				t.Fatalf("expected rejection containing %q", test.message)
 			}

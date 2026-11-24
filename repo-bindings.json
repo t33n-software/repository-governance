@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "home": {
     "repository": "t33n-software/repository-governance",
     "sha": "163bc21ca2120058a04555ef0dcc4eebb7fa39a2"
@@ -9,6 +9,7 @@
     "codeScanning": true,
     "licenseHub": false
   },
+  "distribution": "cli",
   "callers": [
     {
       "file": ".github/workflows/ci.yml",

@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/t33n-software/repository-governance/main/schemas/repo-bindings/v3/repo-bindings.schema.json",
+  "title": "Repository Bindings Manifest",
+  "description": "The canonical tenant binding manifest (repo-bindings.json). It records the home pin, the fleet classes, the optional distribution axis, the bound callers with their hashes, the canonical file bindings — the gitignore topic as the ordered fragment list plus the hash of the rendered governed region —, the CODEOWNERS render values, the optional conventions README render values, the config-seam pin, the tooling-module pin, and the optional territory config-topic binding with per-artifact provenance homes and composition fragments. The manifest binds selections only: the package-manager identity and the workspace document location are derived from the ecosystem package contract through the pinned territory registry's derivation block and are never declared here. The schema is owned by the repository-governance home, strictly decoded, and proven by conformance vectors.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "home", "class", "callers", "files", "codeowners", "quality", "tools"],
+  "properties": {
+    "schemaVersion": {
+      "const": 3,
+      "description": "The canonical repo-bindings schema version."
+    },
+    "home": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "sha"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+/[a-z0-9-]+$",
+          "description": "The home repository coordinate (owner/repository)."
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "The bound home release tag; documentation, never the trust anchor."
+        },
+        "sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$",
+          "description": "The bound home commit SHA — the trust anchor."
+        }
+      }
+    },
+    "class": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["qualityGates", "codeScanning", "licenseHub"],
+      "properties": {
+        "qualityGates": {
+          "type": "string",
+          "enum": ["full", "linux-only", "pending"]
+        },
+        "codeScanning": {
+          "type": "boolean",
+          "description": "Whether the tenant carries the code-scanning caller."
+        },
+        "licenseHub": {
+          "type": "boolean",
+          "description": "Whether the license-hub family is bound."
+        }
+      }
+    },
+    "distribution": {
+      "type": "string",
+      "enum": ["library", "cli", "vscode-extension", "container-image", "reference-hub"],
+      "description": "The optional artifact-class axis of the tenant: a fleet selection no ecosystem contract file declares. An absent axis declares no distribution class; the declaration-coupling proofs bind when the axis is present."
+    },
+    "callers": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "master", "sha256"],
+        "properties": {
+          "file": {
+            "type": "string",
+            "pattern": "^\\.github/workflows/[a-z0-9-]+\\.yml$"
+          },
+          "master": {
+            "type": "string",
+            "pattern": "^hosting-platforms/github/workflows/callers/[a-z0-9-]+/[a-z0-9-]+\\.yml$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lefthook", "gitattributes", "gitignore", "dependabot"],
+      "properties": {
+        "lefthook": { "$ref": "#/$defs/fileBinding" },
+        "gitattributes": { "$ref": "#/$defs/fileBinding" },
+        "gitignore": { "$ref": "#/$defs/gitignoreBinding" },
+        "dependabot": { "$ref": "#/$defs/fileBinding" }
+      }
+    },
+    "codeowners": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "defaultOwner"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "defaultOwner": { "type": "string", "minLength": 1 }
+      }
+    },
+    "conventions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "organization", "repository", "rationale"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "organization": { "type": "string", "minLength": 1 },
+        "repository": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 }
+      },
+      "description": "The optional rule-sets conventions README render binding; an absent section skips the materialization proof."
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["config", "schemaVersion"],
+      "properties": {
+        "config": { "type": "string", "minLength": 1 },
+        "schemaVersion": {
+          "const": 4,
+          "description": "The pinned config-seam schema version."
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module", "catalogVersion"],
+      "properties": {
+        "module": { "type": "string", "minLength": 1 },
+        "catalogVersion": {
+          "const": 1,
+          "description": "The pinned canonical tool-catalog version."
+        }
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["territory", "registry", "category", "artifacts"],
+      "properties": {
+        "territory": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "sha"],
+          "properties": {
+            "repository": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]+/[a-z0-9-]+$",
+              "description": "The territory repository coordinate (owner/repository)."
+            },
+            "sha": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$",
+              "description": "The bound territory commit SHA — the trust anchor."
+            }
+          }
+        },
+        "registry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "The hash of the pinned category registry instance, whose derivation block carries the territory-owned package-manager facts."
+            }
+          }
+        },
+        "category": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*){0,2}$",
+          "description": "The declared category: the hierarchical path whose form equals the territory folder path."
+        },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["family", "path", "sha256"],
+            "properties": {
+              "family": {
+                "type": "string",
+                "enum": ["tsconfig", "vitest", "tsdown", "eslint", "vscodeignore"],
+                "description": "The config family of the artifact: a byte-identity family or the vscodeignore composition family."
+              },
+              "path": { "type": "string", "minLength": 1 },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$",
+                "description": "The hash proven against both the tenant file and the pinned artifact of the provenance home."
+              },
+              "home": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                "description": "The optional provenance home repository name of the artifact; an absent home binds the toolchain territory."
+              },
+              "fragments": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "prefixItems": [
+                  { "const": "core", "description": "The composition core fragment is always the first fragment." }
+                ],
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                },
+                "description": "The ordered composition fragment list; bindable only on composition families."
+              }
+            }
+          }
+        },
+        "sourceRoots": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "The declared source roots the delivery lane's include must cover."
+        }
+      },
+      "description": "The optional territory config-topic binding; an absent section skips the category proofs. The binding carries selections only: the package-manager identity and the conditional workspace document are derived from the ecosystem package contract through the pinned registry's derivation block."
+    }
+  },
+  "$defs": {
+    "fileBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "gitignoreBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "fragments", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "fragments": {
+          "type": "array",
+          "description": "The ordered gitignore fragment list: the org core first, then ecosystem area and concern fragments.",
+          "minItems": 1,
+          "uniqueItems": true,
+          "prefixItems": [
+            { "const": "core", "description": "The org core fragment is always the first fragment." }
+          ],
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*/[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "description": "An ecosystem area or concern fragment (<area>/core or <area>/<concern>)."
+          }
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "The hash of the rendered governed region."
+        }
+      }
+    }
+  }
+}
