@@ -2,26 +2,26 @@
   "schemaVersion": 1,
   "home": {
     "repository": "t33n-software/repository-governance",
-    "sha": "163bc21ca2120058a04555ef0dcc4eebb7fa39a2"
+    "sha": "31cf2e876b3ca89bd402aa6020fd314abf6298ab"
   },
   "callers": [
     {
       "master": "hosting-platforms/github/workflows/callers/shared/dependency-review.yml",
       "tenantFile": ".github/workflows/dependency-review.yml",
       "class": "",
-      "sha256": "cbb4066be301ea2177b4e092e08d2ac96a351f6b77540f7ad3d2f08d56e5d6c2"
+      "sha256": "0bf23d85ee6d264c11349a14bbcd55e243833e341c17a94304b24d68e9c94f9e"
     },
     {
       "master": "hosting-platforms/github/workflows/callers/shared/release-config.yml",
       "tenantFile": ".github/workflows/release-config.yml",
       "class": "",
-      "sha256": "180c0c738b245d631c511aa27f9899f39b9a759ca74856ebb9646867179b4cdf"
+      "sha256": "f4b569c2fcddc03f040aacef27e4c72428a26e157c67671fd576e3bf944d6b2f"
     },
     {
       "master": "hosting-platforms/github/workflows/callers/shared/canonical-conformance.yml",
       "tenantFile": ".github/workflows/canonical-conformance.yml",
       "class": "",
-      "sha256": "09f46e4e12c79872214a30ca6d4ef6e5796f7c43119bb3f95d20378119e83d6b"
+      "sha256": "d5a9d0646da59a68d9ad9f6bf969c5dc9ec867a361cddb1890aa9ffdabd5c338"
     }
   ]
 }

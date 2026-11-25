@@ -2,26 +2,26 @@
   "schemaVersion": 1,
   "home": {
     "repository": "t33n-software/repository-governance",
-    "sha": "163bc21ca2120058a04555ef0dcc4eebb7fa39a2"
+    "sha": "31cf2e876b3ca89bd402aa6020fd314abf6298ab"
   },
   "callers": [
     {
       "master": "hosting-platforms/github/workflows/callers/go/ci.yml",
       "tenantFile": ".github/workflows/ci.yml",
       "class": "linux-only",
-      "sha256": "834769ae1bc3881bb63bcecba9659da8a3b19140029ef4011ce8c69ae2a7a8d2"
+      "sha256": "87177ae8ee8aaf7af9b95351bc00147c3a3092af864150efb4c88feb2161bec3"
     },
     {
       "master": "hosting-platforms/github/workflows/callers/go/ci-full.yml",
       "tenantFile": ".github/workflows/ci.yml",
       "class": "full",
-      "sha256": "87eb134cebf74760464bef4f41f10bc490f14f425f71be5ed19f0969240659a2"
+      "sha256": "89e48266dae47e4fcfc71c38f5e0455fcd7eebb1afd3101df30a540780291e67"
     },
     {
       "master": "hosting-platforms/github/workflows/callers/go/codeql.yml",
       "tenantFile": ".github/workflows/codeql.yml",
       "class": "",
-      "sha256": "bf9e7940106d3c5bc7ea27f2052132cfc293a27d09b1db83b3f9569249eef008"
+      "sha256": "87c04b280f83cfdd8383bd9af148081174f011cdf558826e7dbc96caf5f80aa1"
     }
   ]
 }

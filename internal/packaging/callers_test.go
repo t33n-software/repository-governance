@@ -40,6 +40,8 @@ func TestCallersCarryTheExactJobNamesAndGrants(t *testing.T) {
 		"hosting-platforms/github/workflows/callers/go/ci.yml":                        {"  quality:\n    name: Quality gates\n", "quality_class: linux-only", "contents: read"},
 		"hosting-platforms/github/workflows/callers/go/ci-full.yml":                   {"  quality:\n    name: Quality gates\n", "quality_class: full", "contents: read"},
 		"hosting-platforms/github/workflows/callers/go/codeql.yml":                    {"  analyze:\n    name: CodeQL\n", "actions: read", "contents: read", "security-events: write"},
+		"hosting-platforms/github/workflows/callers/node-typescript/ci.yml":           {"  quality:\n    name: Quality gates\n", "quality_class: full", "contents: read"},
+		"hosting-platforms/github/workflows/callers/node-typescript/codeql.yml":       {"  analyze:\n    name: CodeQL\n", "actions: read", "contents: read", "security-events: write"},
 		"hosting-platforms/github/workflows/callers/shared/dependency-review.yml":     {"  dependency-review:\n    name: Dependency review\n", "contents: read"},
 		"hosting-platforms/github/workflows/callers/shared/release-config.yml":        {"  release-config:\n    name: Release configuration\n", "contents: read"},
 		"hosting-platforms/github/workflows/callers/shared/canonical-conformance.yml": {"  conformance:\n    name: Canonical conformance\n", "contents: read"},
@@ -99,6 +101,7 @@ func TestCallerHashesRecordMatchesTheMasters(t *testing.T) {
 	records := []string{
 		"hosting-platforms/github/workflows/callers/go/caller-hashes.json",
 		"hosting-platforms/github/workflows/callers/shared/caller-hashes.json",
+		"hosting-platforms/github/workflows/callers/node-typescript/caller-hashes.json",
 	}
 	published := make(map[string]string)
 	for _, recordPath := range records {

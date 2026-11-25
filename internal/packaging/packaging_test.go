@@ -69,6 +69,8 @@ var callers = []string{
 	"hosting-platforms/github/workflows/callers/shared/dependency-review.yml",
 	"hosting-platforms/github/workflows/callers/shared/release-config.yml",
 	"hosting-platforms/github/workflows/callers/shared/canonical-conformance.yml",
+	"hosting-platforms/github/workflows/callers/node-typescript/ci.yml",
+	"hosting-platforms/github/workflows/callers/node-typescript/codeql.yml",
 }
 
 // compositeActions lists the home's composite actions.

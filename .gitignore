@@ -1,4 +1,4 @@
-# canonical: gitignore core + go/core @ 163bc21ca2120058a04555ef0dcc4eebb7fa39a2 — governed region, do not edit
+# canonical: gitignore core + go/core @ 31cf2e876b3ca89bd402aa6020fd314abf6298ab — governed region, do not edit
 # ╭───═══◎◎◎═══───
 # 🏗️ **Local build and test outputs**
 # Generated build, test, and cache trees, matched at the workspace root and at every nested depth so single projects and monorepos share one rule.

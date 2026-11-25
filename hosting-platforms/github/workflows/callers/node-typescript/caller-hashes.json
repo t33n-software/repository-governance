@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "home": {
+    "repository": "t33n-software/repository-governance",
+    "sha": "31cf2e876b3ca89bd402aa6020fd314abf6298ab"
+  },
+  "callers": [
+    {
+      "master": "hosting-platforms/github/workflows/callers/node-typescript/ci.yml",
+      "tenantFile": ".github/workflows/ci.yml",
+      "class": "full",
+      "sha256": "4befe4c620d4241dc8d733f2ce2b00e00c362138e67053f802b0841d6f867471"
+    },
+    {
+      "master": "hosting-platforms/github/workflows/callers/node-typescript/codeql.yml",
+      "tenantFile": ".github/workflows/codeql.yml",
+      "class": "",
+      "sha256": "537f0bad9bd72ad43eb71b666f3b12e0f4159d3abdca4a9732193a7b42077e52"
+    }
+  ]
+}

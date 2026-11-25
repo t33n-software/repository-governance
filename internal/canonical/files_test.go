@@ -270,6 +270,7 @@ func TestVerifierHomePathsExistInTheHomeLayout(t *testing.T) {
 		conventionsTemplatePath,
 		callerHashesRecordPath("hosting-platforms/github/workflows/callers/go/ci.yml"),
 		callerHashesRecordPath("hosting-platforms/github/workflows/callers/shared/canonical-conformance.yml"),
+		callerHashesRecordPath("hosting-platforms/github/workflows/callers/node-typescript/ci.yml"),
 	} {
 		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(path))); err != nil {
 			t.Fatalf("the verifier home path %q does not exist in the home layout: %v", path, err)
