@@ -55,6 +55,8 @@ func listVectors(t *testing.T, lane string) []string {
 var payloads = []string{
 	".github/workflows/reusable-ci-go.yml",
 	".github/workflows/reusable-codeql-go.yml",
+	".github/workflows/reusable-ci-node.yml",
+	".github/workflows/reusable-codeql-node.yml",
 	".github/workflows/reusable-dependency-review.yml",
 	".github/workflows/reusable-release-config.yml",
 	".github/workflows/reusable-canonical-conformance.yml",
@@ -64,9 +66,9 @@ var callers = []string{
 	"hosting-platforms/github/workflows/callers/go/ci.yml",
 	"hosting-platforms/github/workflows/callers/go/ci-full.yml",
 	"hosting-platforms/github/workflows/callers/go/codeql.yml",
-	"hosting-platforms/github/workflows/callers/go/dependency-review.yml",
-	"hosting-platforms/github/workflows/callers/go/release-config.yml",
-	"hosting-platforms/github/workflows/callers/go/canonical-conformance.yml",
+	"hosting-platforms/github/workflows/callers/shared/dependency-review.yml",
+	"hosting-platforms/github/workflows/callers/shared/release-config.yml",
+	"hosting-platforms/github/workflows/callers/shared/canonical-conformance.yml",
 }
 
 // compositeActions lists the home's composite actions.

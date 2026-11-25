@@ -1,0 +1,140 @@
+name: CI (node-typescript) — reusable
+
+on:
+  workflow_call:
+    inputs:
+      quality_class:
+        description: The fleet quality-gate class of the calling repository (linux-only or full).
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+
+concurrency:
+  group: ci-node-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  select:
+    name: Select the quality-gate matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - name: Select the class matrix
+        id: select
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ inputs.quality_class }}" in
+            linux-only)
+              matrix='{"include":[{"name":"linux-amd64","os":"ubuntu-24.04"}]}'
+              ;;
+            full)
+              matrix='{"include":[{"name":"linux-amd64","os":"ubuntu-24.04"},{"name":"macos-arm64","os":"macos-15"},{"name":"windows-amd64","os":"windows-2025"}]}'
+              ;;
+            *)
+              echo "unknown quality_class: ${{ inputs.quality_class }}" >&2
+              exit 1
+              ;;
+          esac
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  quality:
+    name: ${{ matrix.name }}
+    needs: select
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve the pinned toolchain
+        id: toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          directive="$(
+            node -e '
+              const seam = require("./git-governance.quality.json");
+              const t = seam.toolchain || {};
+              if (t.language !== "node-typescript") { console.error("the config seam must declare toolchain.language node-typescript"); process.exit(1); }
+              if (typeof t.version !== "string" || !/^[0-9]+\.[0-9]+\.[0-9]+$/.test(t.version)) { console.error("the config seam must carry exactly one pinned toolchain version of the form X.Y.Z"); process.exit(1); }
+              process.stdout.write(t.version);
+            '
+          )" || {
+            echo "git-governance.quality.json must declare toolchain { language: node-typescript, version: X.Y.Z } — the seam is the assertion authority and the quality gate cross-checks the running toolchain against it fail-closed" >&2
+            exit 1
+          }
+          echo "resolved the pinned toolchain version: $directive"
+          echo "version=$directive" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ steps.toolchain.outputs.version }}
+
+      - name: Read the package-manager declaration
+        id: pm
+        shell: bash
+        run: |
+          set -euo pipefail
+          declaration="$(
+            node -e '
+              const p = require("./package.json");
+              const v = p.packageManager || "";
+              if (!/^[a-z]+@[0-9]+\.[0-9]+\.[0-9]+$/.test(v)) { console.error("package.json#packageManager must carry the corepack declaration <name>@<X.Y.Z>"); process.exit(1); }
+              process.stdout.write(v);
+            '
+          )" || {
+            echo "package.json is absent or carries no package-manager declaration — the declaration is mandatory and never inferred" >&2
+            exit 1
+          }
+          echo "name=${declaration%%@*}" >> "$GITHUB_OUTPUT"
+          echo "version=${declaration#*@}" >> "$GITHUB_OUTPUT"
+
+      - name: Enable the declared package manager
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare "${{ steps.pm.outputs.name }}@${{ steps.pm.outputs.version }}" --activate
+
+      - name: Install the locked dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ steps.pm.outputs.name }}" in
+            pnpm) pnpm install --frozen-lockfile ;;
+            npm)  npm ci ;;
+            yarn) yarn install --immutable ;;
+            *)    echo "unsupported package manager '${{ steps.pm.outputs.name }}' — the fleet corepack families are pnpm, npm, and yarn" >&2; exit 1 ;;
+          esac
+
+      - name: Rebuild native bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ steps.pm.outputs.name }}" in
+            pnpm) pnpm rebuild --recursive || true ;;
+            npm)  npm rebuild || true ;;
+            yarn) yarn rebuild || true ;;
+          esac
+
+      - name: Run the declared quality gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          ${{ steps.pm.outputs.name }} run typecheck
+          ${{ steps.pm.outputs.name }} run test

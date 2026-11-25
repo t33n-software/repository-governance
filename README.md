@@ -2,7 +2,8 @@
 
 `repository-governance` is the canonical home of the repository surface of
 the fleet. It owns everything a repository **carries**: the reusable workflow
-payloads (`reusable-ci-go`, `reusable-codeql-go`, `reusable-dependency-review`,
+payloads (`reusable-ci-go`, `reusable-codeql-go`, `reusable-ci-node`,
+`reusable-codeql-node`, `reusable-dependency-review`,
 `reusable-release-config`, `reusable-canonical-conformance`), the composite
 actions (`setup-controlled-go`,
 `verify-canonical-files`), the
@@ -17,7 +18,7 @@ conformance verifier (`cmd/verify-canonical`) — the proof of carrying.
 |---|---|---|
 | Reusable payloads | `.github/workflows/reusable-*.yml` | The class-A execution logic, referenced by full-length SHA |
 | Composite actions | `.github/actions/` | The controlled-Go setup and the verifier shell |
-| Canonical callers | `hosting-platforms/github/workflows/callers/go/` | The thin, hash-pinned tenant adoption shape |
+| Canonical callers | `hosting-platforms/github/workflows/callers/` | The thin, hash-pinned tenant adoption shape — one directory per family (`shared/` plus the language directories), each with its own `caller-hashes.json` record |
 | Canonical files | `hosting-platforms/github/files/` | The class-C content family (byte-identical or rendered) |
 | Conformance verifier | `cmd/verify-canonical/` | The fail-closed proof-of-carrying engine |
 | Provisioning CLI | `cmd/provision-canonical/` | The write exposure of the render core — provisions a tenant's canonical surfaces and the territory config artifacts of a bound toolchain section from the binding manifest |

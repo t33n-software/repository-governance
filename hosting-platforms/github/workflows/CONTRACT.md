@@ -4,7 +4,11 @@ This document is the binding contract of the reusable workflow family and its
 callers. It owns the trigger surface, the permission model, the check-context
 model, the binding seams, and the pin lifecycle. The payloads live at the
 platform-enforced execution location `.github/workflows/`; the hash-pinned
-canonical callers live at `hosting-platforms/github/workflows/callers/go/`.
+canonical callers live under `hosting-platforms/github/workflows/callers/`,
+one directory per caller family: `shared/` carries the language-agnostic
+masters and every language directory carries that language's masters. Each
+directory publishes exactly one `caller-hashes.json` record of its own
+masters.
 
 ## The payload family
 
@@ -12,8 +16,10 @@ canonical callers live at `hosting-platforms/github/workflows/callers/go/`.
 |---|---|---|
 | `.github/workflows/reusable-ci-go.yml` | The canonical Go quality lane | `quality_class` (`linux-only` or `full`) |
 | `.github/workflows/reusable-codeql-go.yml` | The canonical Go CodeQL analysis lane | none |
+| `.github/workflows/reusable-ci-node.yml` | The canonical Node/TypeScript quality lane | `quality_class` (`linux-only` or `full`) |
+| `.github/workflows/reusable-codeql-node.yml` | The canonical Node/TypeScript CodeQL analysis lane | none |
 | `.github/workflows/reusable-dependency-review.yml` | The dependency admission review | none |
-| `.github/workflows/reusable-release-config.yml` | The release configuration check (GoReleaser) | none |
+| `.github/workflows/reusable-release-config.yml` | The release configuration check (the payload provisions the Go release tool today; a tenant without a release configuration carries no caller for it — a named class state, never a disabled file) | none |
 | `.github/workflows/reusable-canonical-conformance.yml` | The canonical conformance proof (the verify-canonical orchestration through the home's composite action at the canonical pin) | none |
 
 Every payload carries exclusively `on: workflow_call` and never triggers
@@ -50,8 +56,8 @@ bound grants:
 
 | Caller | Calling-job grant | Callee declares |
 |---|---|---|
-| `ci.yml` / `ci-full.yml` | `contents: read` | `contents: read` |
-| `codeql.yml` | `actions: read`, `contents: read`, `security-events: write` | the same three |
+| `ci.yml` / `ci-full.yml` (every language family) | `contents: read` | `contents: read` |
+| `codeql.yml` (every language family) | `actions: read`, `contents: read`, `security-events: write` | the same three |
 | `dependency-review.yml` | `contents: read` | `contents: read` |
 | `release-config.yml` | `contents: read` | `contents: read` |
 | `canonical-conformance.yml` | `contents: read` | `contents: read` |
@@ -68,7 +74,8 @@ are contract, because the shared-line rulesets bind the exact strings:
 |---|---|---|---|
 | `ci.yml` | `Quality gates` | the matrix variant | `Quality gates / linux-amd64` |
 | `ci-full.yml` | `Quality gates` | the matrix variant | `Quality gates / linux-amd64`, `Quality gates / macos-arm64`, `Quality gates / windows-amd64` |
-| `codeql.yml` | `CodeQL` | `CodeQL (go)` | `CodeQL / CodeQL (go)` |
+| `codeql.yml` (Go family) | `CodeQL` | `CodeQL (go)` | `CodeQL / CodeQL (go)` |
+| `codeql.yml` (Node family) | `CodeQL` | `CodeQL (node-typescript)` | `CodeQL / CodeQL (node-typescript)` |
 | `dependency-review.yml` | `Dependency review` | `Dependency admission review` | `Dependency review / Dependency admission review` |
 | `release-config.yml` | `Release configuration` | `GoReleaser configuration check` | `Release configuration / GoReleaser configuration check` |
 | `canonical-conformance.yml` | `Canonical conformance` | `Canonical bindings verification` | `Canonical conformance / Canonical bindings verification` |
@@ -81,7 +88,7 @@ line — the activation order is validated sequencing, never assumption.
 
 ## The binding seams
 
-- **Toolchain version.** The payloads and the controlled-Go setup action
+- **Toolchain version (Go).** The Go payloads and the controlled-Go setup action
   provision exactly the toolchain pinned by the `toolchain` directive of the
   tenant's `go.mod`: a fail-closed resolution step extracts the pinned
   version (a missing, ambiguous, or malformed directive is an error — the
@@ -93,6 +100,16 @@ line — the activation order is validated sequencing, never assumption.
   and the conformance verifier proves the tenant's `go.mod` carries the
   directive. The toolchain identity is tenant data at its native place —
   never a workflow edit, never a JSON extraction shim.
+- **Toolchain version (Node/TypeScript).** The Node payloads provision exactly
+  the toolchain declared by the configuration seam's `toolchain` block
+  (`language: node-typescript`, the exact three-part `version`): a fail-closed
+  resolution step reads the seam and `actions/setup-node` installs exactly
+  that version — never a `.node-version` fallback, never the latest release.
+  The package manager is corepack-provisioned from the
+  `package.json#packageManager` declaration, fail-closed on a missing or
+  malformed declaration; the supported families are pnpm, npm, and yarn. The
+  emitted gate contexts stay ecosystem-invariant (`Quality gates / …`), so the
+  shared-line rulesets bind one context set across languages.
 - **Full history.** The CI payload checks out the full history and every
   branch (`fetch-depth: 0`): governed suites may carry provenance guards —
   such as the pin-ancestry proof against the merged lines — that fail-closed
@@ -115,10 +132,12 @@ line — the activation order is validated sequencing, never assumption.
   toolchain.
 
 ## The caller contract
-
-A tenant adopts a lane by carrying the byte-identical caller from
-`hosting-platforms/github/workflows/callers/go/`. The caller references the
+A tenant adopts a lane by carrying the byte-identical caller from its directory
+under `hosting-platforms/github/workflows/callers/`: the language-agnostic
+masters come from `shared/`, the language-specific masters from the tenant's
+own family directory. The caller references the
 payload by full-length commit SHA; the version comment lands with the first
+home release pin.
 home release pin. Any deviation from the canonical caller is a hash mismatch
 and blocks fail-closed in the "Canonical conformance" check. A tenant whose
 class disables a capability carries no caller for it — the state is a named

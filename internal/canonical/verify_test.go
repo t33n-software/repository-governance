@@ -25,13 +25,13 @@ func TestVerifyPass(t *testing.T) {
 	for path, contents := range callerFixture.homeContents {
 		fixture.homeContents[path] = contents
 	}
-	fixture.homeContents[callerHashesPath] = callerFixture.recordContents
+	fixture.homeContents[callerHashesRecordPath("hosting-platforms/github/workflows/callers/go/ci.yml")] = callerFixture.recordContents
 	fixture.tenantContents["git-governance.quality.json"] = []byte(`{"schemaVersion":4,"toolchain":{"language":"go","version":"1.26.6"},"gates":[{"name":"a","command":"go"}]}`)
 	fixture.tenantContents["go.mod"] = []byte("module example.com/tenant\n\ngo 1.26\n\ntoolchain go1.26.6\n")
 
 	verifier := fixture.verifier()
 	verifier.ReadHome = func(path string) ([]byte, error) {
-		if path == callerHashesPath {
+		if strings.HasSuffix(path, "/"+callerHashesRecordName) {
 			return callerFixture.recordContents, nil
 		}
 		if path == "go.mod" {

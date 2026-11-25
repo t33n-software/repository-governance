@@ -10,7 +10,7 @@ canonical callers, and the canonical file family.
 | Path | Content |
 |---|---|
 | `workflows/CONTRACT.md` | The binding contract of the workflow family: trigger surface, permission model, check-context model, binding seams, pin lifecycle |
-| `workflows/callers/go/` | The canonical, hash-pinned callers (`ci.yml`, `ci-full.yml`, `codeql.yml`, `dependency-review.yml`) plus their `caller-hashes.json` record |
+| `workflows/callers/` | The canonical, hash-pinned callers, one directory per family: `shared/` (the language-agnostic masters `dependency-review.yml`, `release-config.yml`, `canonical-conformance.yml`), `go/` (`ci.yml`, `ci-full.yml`, `codeql.yml`); each directory publishes its own `caller-hashes.json` record |
 | `actions/CONTRACT.md` | The binding contract of the composite action family |
 | `files/gitattributes/.gitattributes` | The byte-identical line-ending contract |
 | `files/gitignore/` | The fragment tree (`core.gitignore` plus `<area>/core.gitignore` and `<area>/<concern>.gitignore`), composed at bind time into one physical tenant file |

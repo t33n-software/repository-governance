@@ -37,12 +37,12 @@ func TestCallersReferenceTheHomePayloadsBySHA(t *testing.T) {
 
 func TestCallersCarryTheExactJobNamesAndGrants(t *testing.T) {
 	expectations := map[string][]string{
-		"hosting-platforms/github/workflows/callers/go/ci.yml":                    {"  quality:\n    name: Quality gates\n", "quality_class: linux-only", "contents: read"},
-		"hosting-platforms/github/workflows/callers/go/ci-full.yml":               {"  quality:\n    name: Quality gates\n", "quality_class: full", "contents: read"},
-		"hosting-platforms/github/workflows/callers/go/codeql.yml":                {"  analyze:\n    name: CodeQL\n", "actions: read", "contents: read", "security-events: write"},
-		"hosting-platforms/github/workflows/callers/go/dependency-review.yml":     {"  dependency-review:\n    name: Dependency review\n", "contents: read"},
-		"hosting-platforms/github/workflows/callers/go/release-config.yml":        {"  release-config:\n    name: Release configuration\n", "contents: read"},
-		"hosting-platforms/github/workflows/callers/go/canonical-conformance.yml": {"  conformance:\n    name: Canonical conformance\n", "contents: read"},
+		"hosting-platforms/github/workflows/callers/go/ci.yml":                        {"  quality:\n    name: Quality gates\n", "quality_class: linux-only", "contents: read"},
+		"hosting-platforms/github/workflows/callers/go/ci-full.yml":                   {"  quality:\n    name: Quality gates\n", "quality_class: full", "contents: read"},
+		"hosting-platforms/github/workflows/callers/go/codeql.yml":                    {"  analyze:\n    name: CodeQL\n", "actions: read", "contents: read", "security-events: write"},
+		"hosting-platforms/github/workflows/callers/shared/dependency-review.yml":     {"  dependency-review:\n    name: Dependency review\n", "contents: read"},
+		"hosting-platforms/github/workflows/callers/shared/release-config.yml":        {"  release-config:\n    name: Release configuration\n", "contents: read"},
+		"hosting-platforms/github/workflows/callers/shared/canonical-conformance.yml": {"  conformance:\n    name: Canonical conformance\n", "contents: read"},
 	}
 	for caller, required := range expectations {
 		t.Run(filepath.Base(caller), func(t *testing.T) {
@@ -84,7 +84,7 @@ func TestHomeCallersAreByteIdenticalToTheMasters(t *testing.T) {
 	pairs := map[string]string{
 		".github/workflows/ci.yml":                "hosting-platforms/github/workflows/callers/go/ci.yml",
 		".github/workflows/codeql.yml":            "hosting-platforms/github/workflows/callers/go/codeql.yml",
-		".github/workflows/dependency-review.yml": "hosting-platforms/github/workflows/callers/go/dependency-review.yml",
+		".github/workflows/dependency-review.yml": "hosting-platforms/github/workflows/callers/shared/dependency-review.yml",
 	}
 	for own, master := range pairs {
 		t.Run(filepath.Base(own), func(t *testing.T) {
@@ -96,27 +96,44 @@ func TestHomeCallersAreByteIdenticalToTheMasters(t *testing.T) {
 }
 
 func TestCallerHashesRecordMatchesTheMasters(t *testing.T) {
-	record := readArtifact(t, "hosting-platforms/github/workflows/callers/go/caller-hashes.json")
-	var document struct {
-		SchemaVersion int `json:"schemaVersion"`
-		Callers       []struct {
-			Master string `json:"master"`
-			SHA256 string `json:"sha256"`
-		} `json:"callers"`
+	records := []string{
+		"hosting-platforms/github/workflows/callers/go/caller-hashes.json",
+		"hosting-platforms/github/workflows/callers/shared/caller-hashes.json",
 	}
-	if err := json.Unmarshal([]byte(record), &document); err != nil {
-		t.Fatalf("the caller-hashes record is not valid JSON: %v", err)
+	published := make(map[string]string)
+	for _, recordPath := range records {
+		record := readArtifact(t, recordPath)
+		var document struct {
+			SchemaVersion int `json:"schemaVersion"`
+			Callers       []struct {
+				Master string `json:"master"`
+				SHA256 string `json:"sha256"`
+			} `json:"callers"`
+		}
+		if err := json.Unmarshal([]byte(record), &document); err != nil {
+			t.Fatalf("the caller-hashes record %s is not valid JSON: %v", recordPath, err)
+		}
+		if document.SchemaVersion != 1 {
+			t.Fatalf("record %s schemaVersion = %d", recordPath, document.SchemaVersion)
+		}
+		for _, entry := range document.Callers {
+			if _, found := published[entry.Master]; found {
+				t.Fatalf("the master %s is published by more than one record", entry.Master)
+			}
+			published[entry.Master] = entry.SHA256
+		}
 	}
-	if document.SchemaVersion != 1 {
-		t.Fatalf("record schemaVersion = %d", document.SchemaVersion)
+	if len(published) != len(callers) {
+		t.Fatalf("the records union carries %d callers, want %d", len(published), len(callers))
 	}
-	if len(document.Callers) != len(callers) {
-		t.Fatalf("the record carries %d callers, want %d", len(document.Callers), len(callers))
-	}
-	for _, entry := range document.Callers {
-		master := readArtifact(t, entry.Master)
-		if hash := canonical.Sum256Hex([]byte(master)); hash != entry.SHA256 {
-			t.Fatalf("the recorded hash of %s diverges: %s != %s", entry.Master, hash, entry.SHA256)
+	for _, master := range callers {
+		recorded, found := published[master]
+		if !found {
+			t.Fatalf("the caller %s is not published by any record", master)
+		}
+		contents := readArtifact(t, master)
+		if hash := canonical.Sum256Hex([]byte(contents)); hash != recorded {
+			t.Fatalf("the recorded hash of %s diverges: %s != %s", master, hash, recorded)
 		}
 	}
 }

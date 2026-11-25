@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"strings"
 )
 
@@ -26,8 +27,19 @@ type callerHashesDocument struct {
 	} `json:"callers"`
 }
 
-// callerHashesPath is the home-relative path of the published record.
-const callerHashesPath = "hosting-platforms/github/workflows/callers/go/caller-hashes.json"
+// callerHashesRecordName is the file name of the published caller-hash record
+// inside every caller directory: the shared directory and each language
+// directory carries exactly one record of its own masters.
+const callerHashesRecordName = "caller-hashes.json"
+
+// callerHashesRecordPath derives the record of one master: the published
+// record is the sibling of its master inside the master's caller directory.
+// The derivation is the single source — no directory set is enumerated, so a
+// language directory without published masters cannot be demanded and a
+// directory with a record cannot be skipped.
+func callerHashesRecordPath(master string) string {
+	return path.Dir(master) + "/" + callerHashesRecordName
+}
 
 // verifyCallers proves every bound caller: the tenant file's hash equals the
 // declared hash, the canonical master's hash equals the declared hash, the
@@ -35,9 +47,13 @@ const callerHashesPath = "hosting-platforms/github/workflows/callers/go/caller-h
 // references the payload by the bound home pin.
 func (v Verifier) verifyCallers(bindings Bindings) []Finding {
 	findings := make([]Finding, 0)
-	published, err := v.publishedCallerHashes()
+	masters := make([]string, 0, len(bindings.Callers))
+	for _, caller := range bindings.Callers {
+		masters = append(masters, caller.Master)
+	}
+	published, err := v.publishedCallerHashes(masters)
 	if err != nil {
-		return []Finding{readErrorFinding("callers", callerHashesPath, err)}
+		return []Finding{mismatchFinding("callers", err.Error())}
 	}
 	for _, caller := range bindings.Callers {
 		check := "caller " + caller.File
@@ -106,19 +122,37 @@ func verifyCallerPin(contents string, home HomePin) error {
 	return fmt.Errorf("the caller carries no uses reference")
 }
 
-// publishedCallerHashes reads the home's published caller-hash record.
-func (v Verifier) publishedCallerHashes() (map[string]string, error) {
-	contents, err := v.ReadHome(callerHashesPath)
-	if err != nil {
-		return nil, err
+// publishedCallerHashes reads the published record of every directory the
+// bound masters live in and unions them into one master-to-hash map. Every
+// record is decoded strictly on its own; a master published twice with
+// diverging hashes across records is an error, never a last-write-wins.
+func (v Verifier) publishedCallerHashes(masters []string) (map[string]string, error) {
+	recordPaths := make([]string, 0, len(masters))
+	seen := make(map[string]struct{}, len(masters))
+	for _, master := range masters {
+		recordPath := callerHashesRecordPath(master)
+		if _, found := seen[recordPath]; found {
+			continue
+		}
+		seen[recordPath] = struct{}{}
+		recordPaths = append(recordPaths, recordPath)
 	}
-	document, err := decodeCallerHashes(contents)
-	if err != nil {
-		return nil, err
-	}
-	record := make(map[string]string, len(document.Callers))
-	for _, caller := range document.Callers {
-		record[caller.Master] = caller.SHA256
+	record := make(map[string]string, len(masters))
+	for _, recordPath := range recordPaths {
+		contents, err := v.ReadHome(recordPath)
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", recordPath, err)
+		}
+		document, err := decodeCallerHashes(contents)
+		if err != nil {
+			return nil, fmt.Errorf("decode %s: %w", recordPath, err)
+		}
+		for _, caller := range document.Callers {
+			if previous, found := record[caller.Master]; found && previous != caller.SHA256 {
+				return nil, fmt.Errorf("the master %s is published twice with diverging hashes (%s, %s)", caller.Master, previous, caller.SHA256)
+			}
+			record[caller.Master] = caller.SHA256
+		}
 	}
 	return record, nil
 }

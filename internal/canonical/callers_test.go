@@ -43,7 +43,7 @@ func (fixture callerFixture) verifier() Verifier {
 			if fixture.homeErr != nil {
 				return nil, fixture.homeErr
 			}
-			if path == callerHashesPath {
+			if strings.HasSuffix(path, "/"+callerHashesRecordName) {
 				return fixture.recordContents, fixture.recordErr
 			}
 			contents, found := fixture.homeContents[path]
@@ -200,17 +200,61 @@ func TestVerifyCallerPin(t *testing.T) {
 }
 
 func TestPublishedCallerHashesErrors(t *testing.T) {
+	masters := []string{"hosting-platforms/github/workflows/callers/go/ci.yml"}
 	t.Run("read error", func(t *testing.T) {
 		verifier := Verifier{ReadHome: func(path string) ([]byte, error) { return nil, errors.New("boom") }}
-		if _, err := verifier.publishedCallerHashes(); err == nil {
+		if _, err := verifier.publishedCallerHashes(masters); err == nil {
 			t.Fatal("expected the read error")
 		}
 	})
 
 	t.Run("decode error", func(t *testing.T) {
 		verifier := Verifier{ReadHome: func(path string) ([]byte, error) { return []byte("not json"), nil }}
-		if _, err := verifier.publishedCallerHashes(); err == nil {
+		if _, err := verifier.publishedCallerHashes(masters); err == nil {
 			t.Fatal("expected the decode error")
+		}
+	})
+}
+
+// TestPublishedCallerHashesUnionsRecords proves the directory-sibling record
+// union: masters from two caller directories read two records and the union
+// carries every published master; a master published twice with diverging
+// hashes across records is an error, never a last-write-wins.
+func TestPublishedCallerHashesUnionsRecords(t *testing.T) {
+	const sharedMaster = "hosting-platforms/github/workflows/callers/shared/dependency-review.yml"
+	const goMaster = "hosting-platforms/github/workflows/callers/go/ci.yml"
+	sharedHash := strings.Repeat("a", 64)
+	goHash := strings.Repeat("b", 64)
+	records := map[string]string{
+		"hosting-platforms/github/workflows/callers/shared/caller-hashes.json": callerRecordJSON(sharedMaster, sharedHash),
+		"hosting-platforms/github/workflows/callers/go/caller-hashes.json":     callerRecordJSON(goMaster, goHash),
+	}
+	verifier := Verifier{ReadHome: func(path string) ([]byte, error) {
+		contents, found := records[path]
+		if !found {
+			return nil, fmt.Errorf("no such home file: %s", path)
+		}
+		return []byte(contents), nil
+	}}
+	record, err := verifier.publishedCallerHashes([]string{goMaster, sharedMaster, goMaster})
+	if err != nil {
+		t.Fatalf("publishedCallerHashes: %v", err)
+	}
+	if len(record) != 2 || record[sharedMaster] != sharedHash || record[goMaster] != goHash {
+		t.Fatalf("the union must carry every published master exactly once, got %v", record)
+	}
+	t.Run("diverging duplicate across records", func(t *testing.T) {
+		// A go-directory record that mis-publishes a shared master with a
+		// diverging hash is rejected: the union of the derived sibling
+		// records never resolves to last-write-wins.
+		conflict := map[string]string{
+			"hosting-platforms/github/workflows/callers/shared/caller-hashes.json": callerRecordJSON(sharedMaster, sharedHash),
+			"hosting-platforms/github/workflows/callers/go/caller-hashes.json":     callerRecordJSON(sharedMaster, goHash),
+		}
+		conflicting := Verifier{ReadHome: func(path string) ([]byte, error) { return []byte(conflict[path]), nil }}
+		if _, err := conflicting.publishedCallerHashes([]string{sharedMaster, goMaster}); err == nil ||
+			!strings.Contains(err.Error(), "published twice with diverging hashes") {
+			t.Fatalf("expected the diverging-duplicate rejection, got %v", err)
 		}
 	})
 }
