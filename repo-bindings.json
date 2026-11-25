@@ -23,7 +23,7 @@
     },
     {
       "file": ".github/workflows/dependency-review.yml",
-      "master": "hosting-platforms/github/workflows/callers/go/dependency-review.yml",
+      "master": "hosting-platforms/github/workflows/callers/shared/dependency-review.yml",
       "sha256": "cbb4066be301ea2177b4e092e08d2ac96a351f6b77540f7ad3d2f08d56e5d6c2"
     }
   ],

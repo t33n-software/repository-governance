@@ -74,6 +74,8 @@ func TestPayloadsPermissionMatrix(t *testing.T) {
 	matrix := map[string][]string{
 		".github/workflows/reusable-ci-go.yml":                 {"contents: read"},
 		".github/workflows/reusable-codeql-go.yml":             {"actions: read", "contents: read", "security-events: write"},
+		".github/workflows/reusable-ci-node.yml":               {"contents: read"},
+		".github/workflows/reusable-codeql-node.yml":           {"actions: read", "contents: read", "security-events: write"},
 		".github/workflows/reusable-dependency-review.yml":     {"contents: read"},
 		".github/workflows/reusable-release-config.yml":        {"contents: read"},
 		".github/workflows/reusable-canonical-conformance.yml": {"contents: read"},
@@ -232,8 +234,65 @@ func TestCIPayloadFetchesFullHistory(t *testing.T) {
 	}
 }
 
+// TestNodePayloadsProvisionTheDeclaredToolchain proves the Node seam's exact
+// provisioning discipline mirrors the Go one: the config seam is the
+// assertion authority (the fail-closed step reads toolchain.language
+// node-typescript and the exact three-part version, never a .node-version
+// fallback and never the latest release), setup-node installs exactly that
+// version, the package manager comes from the mandatory
+// package.json#packageManager corepack declaration, the install is locked per
+// declared family, and the class-selected matrix equals the Go CI matrix so
+// the shared-line rulesets bind one ecosystem-invariant context set.
+func TestNodePayloadsProvisionTheDeclaredToolchain(t *testing.T) {
+	content := readArtifact(t, ".github/workflows/reusable-ci-node.yml")
+	for _, required := range []string{
+		"- name: Resolve the pinned toolchain",
+		"id: toolchain",
+		`t.language !== "node-typescript"`,
+		"git-governance.quality.json",
+		"- name: Set up Node.js",
+		"node-version: ${{ steps.toolchain.outputs.version }}",
+		"- name: Read the package-manager declaration",
+		"packageManager must carry the corepack declaration",
+		"corepack enable",
+		"corepack prepare",
+		"pnpm install --frozen-lockfile",
+		"npm ci",
+		"yarn install --immutable",
+		"${{ steps.pm.outputs.name }} run typecheck",
+		"${{ steps.pm.outputs.name }} run test",
+	} {
+		if !strings.Contains(content, required) {
+			t.Fatalf("the Node CI payload must carry %q", required)
+		}
+	}
+	for _, forbidden := range []string{".node-version", "node-version-file", "latest"} {
+		if strings.Contains(content, forbidden) {
+			t.Fatalf("the Node CI payload must not carry %q", forbidden)
+		}
+	}
+	if strings.Index(content, "- name: Set up Node.js") < strings.Index(content, "- name: Resolve the pinned toolchain") {
+		t.Fatal("the Node CI payload must resolve the pinned toolchain before setting up Node.js")
+	}
+
+	// The matrix forms are ecosystem-invariant: the same variant names and the
+	// same runner labels as the Go CI payload, so every class ruleset's bound
+	// Quality gates contexts resolve identically for Go and Node tenants.
+	goContent := readArtifact(t, ".github/workflows/reusable-ci-go.yml")
+	for _, variant := range []string{"linux-amd64", "macos-arm64", "windows-amd64"} {
+		if !strings.Contains(content, variant) || !strings.Contains(goContent, variant) {
+			t.Fatalf("the matrix variant %s must exist in both CI payloads", variant)
+		}
+	}
+	for _, label := range []string{"ubuntu-24.04", "macos-15", "windows-2025"} {
+		if !strings.Contains(content, label) || !strings.Contains(goContent, label) {
+			t.Fatalf("the runner label %s must be identical across the CI payloads", label)
+		}
+	}
+}
+
 // TestWorkflowAndActionFilesAreWellFormedYAML proves that every workflow and
-// action file of the home parses as well-formed YAML: the five payloads, the
+// action file of the home parses as well-formed YAML: the seven payloads, the
 // six caller masters, the two composite actions, and the ten home workflow
 // files (the dogfooding and lifecycle callers). Pin and reference edits touch
 // these files as text; a broken indentation is invisible to the string-based
@@ -258,6 +317,8 @@ func TestPayloadsCarryTheGateJobNames(t *testing.T) {
 	expectations := map[string]string{
 		".github/workflows/reusable-ci-go.yml":                 "name: ${{ matrix.name }}",
 		".github/workflows/reusable-codeql-go.yml":             "name: CodeQL (go)",
+		".github/workflows/reusable-ci-node.yml":               "name: ${{ matrix.name }}",
+		".github/workflows/reusable-codeql-node.yml":           "name: CodeQL (node-typescript)",
 		".github/workflows/reusable-dependency-review.yml":     "name: Dependency admission review",
 		".github/workflows/reusable-release-config.yml":        "name: GoReleaser configuration check",
 		".github/workflows/reusable-canonical-conformance.yml": "name: Canonical bindings verification",

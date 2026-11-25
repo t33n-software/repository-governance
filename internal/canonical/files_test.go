@@ -265,7 +265,12 @@ func TestVerifierHomePathsExistInTheHomeLayout(t *testing.T) {
 			t.Fatalf("the gitignore fragment %q does not exist in the home layout: %v", path, err)
 		}
 	}
-	for _, path := range []string{codeownersTemplatePath, conventionsTemplatePath, callerHashesPath} {
+	for _, path := range []string{
+		codeownersTemplatePath,
+		conventionsTemplatePath,
+		callerHashesRecordPath("hosting-platforms/github/workflows/callers/go/ci.yml"),
+		callerHashesRecordPath("hosting-platforms/github/workflows/callers/shared/canonical-conformance.yml"),
+	} {
 		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(path))); err != nil {
 			t.Fatalf("the verifier home path %q does not exist in the home layout: %v", path, err)
 		}
