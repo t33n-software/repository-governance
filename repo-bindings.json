@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "home": {
     "repository": "t33n-software/repository-governance",
-    "sha": "163bc21ca2120058a04555ef0dcc4eebb7fa39a2"
+    "sha": "31cf2e876b3ca89bd402aa6020fd314abf6298ab"
   },
   "class": {
     "qualityGates": "linux-only",
@@ -14,23 +14,23 @@
     {
       "file": ".github/workflows/ci.yml",
       "master": "hosting-platforms/github/workflows/callers/go/ci.yml",
-      "sha256": "834769ae1bc3881bb63bcecba9659da8a3b19140029ef4011ce8c69ae2a7a8d2"
+      "sha256": "87177ae8ee8aaf7af9b95351bc00147c3a3092af864150efb4c88feb2161bec3"
     },
     {
       "file": ".github/workflows/codeql.yml",
       "master": "hosting-platforms/github/workflows/callers/go/codeql.yml",
-      "sha256": "bf9e7940106d3c5bc7ea27f2052132cfc293a27d09b1db83b3f9569249eef008"
+      "sha256": "87c04b280f83cfdd8383bd9af148081174f011cdf558826e7dbc96caf5f80aa1"
     },
     {
       "file": ".github/workflows/dependency-review.yml",
       "master": "hosting-platforms/github/workflows/callers/shared/dependency-review.yml",
-      "sha256": "cbb4066be301ea2177b4e092e08d2ac96a351f6b77540f7ad3d2f08d56e5d6c2"
+      "sha256": "0bf23d85ee6d264c11349a14bbcd55e243833e341c17a94304b24d68e9c94f9e"
     }
   ],
   "files": {
     "lefthook": { "path": "lefthook.yml", "sha256": "86562f27a6a34b252028b74fb39ba0373636bf539e6c4d2d5b820a362971520a" },
     "gitattributes": { "path": ".gitattributes", "sha256": "9b7d6d0a795e9231cc202592520f3e4692f83ca13a5a9e8e3086ef7bc39b5cfa" },
-    "gitignore": { "path": ".gitignore", "fragments": ["core", "go/core"], "sha256": "5aee56a4fca935773db2cf677919c6cda0d8eaa2977896fe3f9df63060d9c364" },
+    "gitignore": { "path": ".gitignore", "fragments": ["core", "go/core"], "sha256": "caa677a0ed9f8991efd0413847b969927f1ed34b56887a7f77e86a0acb1436d7" },
     "dependabot": { "path": ".github/dependabot.yml", "sha256": "a28369d1dc1b8eb6cdcef8405fccca644a509fc640fdc8ab3f12adbc0291940a" }
   },
   "codeowners": { "path": ".github/CODEOWNERS", "defaultOwner": "@CyberT33N" },
