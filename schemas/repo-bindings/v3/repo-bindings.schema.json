@@ -211,9 +211,9 @@
                 ],
                 "items": {
                   "type": "string",
-                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)?$"
                 },
-                "description": "The ordered composition fragment list; bindable only on composition families."
+                "description": "The ordered composition fragment list of the provenance home's fragment library: the core fragment first, then area-qualified names (<area>/<concern>) of the canonical fragment grammar; bindable only on composition families."
               }
             }
           }

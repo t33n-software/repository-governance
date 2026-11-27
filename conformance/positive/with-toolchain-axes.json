@@ -34,7 +34,7 @@
     "artifacts": [
       { "family": "tsconfig", "path": "tsconfig.base.json", "sha256": "2222222222222222222222222222222222222222222222222222222222222222" },
       { "family": "eslint", "path": "eslint.config.ts", "sha256": "3333333333333333333333333333333333333333333333333333333333333333" },
-      { "family": "vscodeignore", "path": ".vscodeignore", "sha256": "4444444444444444444444444444444444444444444444444444444444444444", "home": "vscode-extension-governance", "fragments": ["core", "node", "pnpm", "esbuild", "eslint"] }
+      { "family": "vscodeignore", "path": ".vscodeignore", "sha256": "4444444444444444444444444444444444444444444444444444444444444444", "home": "vscode-extension-governance", "fragments": ["core", "node/core", "package-manager/pnpm", "bundler/esbuild", "linting/eslint"] }
     ],
     "sourceRoots": ["src"]
   }

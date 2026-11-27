@@ -270,7 +270,7 @@ func TestVerifyConfigArtifactsProofs(t *testing.T) {
 			Path:      ".vscodeignore",
 			SHA256:    strings.Repeat("9", 64),
 			Home:      "vscode-extension-governance",
-			Fragments: []string{"core", "node"},
+			Fragments: []string{"core", "node/core"},
 		})
 		findings := fixture.verifier().verifyToolchainConfig(Bindings{Toolchain: binding}, seamWithCategory("single-project/bundler-owned"))
 		assertFindingContains(t, findings, "no implemented composition proof")
@@ -539,7 +539,7 @@ func toolchainJSONFragment(mutation func(s string) string) string {
   "category": "single-project/bundler-owned",
   "artifacts": [
     { "family": "tsconfig", "path": "tsconfig.base.json", "sha256": "` + strings.Repeat("2", 64) + `" },
-    { "family": "vscodeignore", "path": ".vscodeignore", "sha256": "` + strings.Repeat("7", 64) + `", "home": "vscode-extension-governance", "fragments": ["core", "node"] }
+    { "family": "vscodeignore", "path": ".vscodeignore", "sha256": "` + strings.Repeat("7", 64) + `", "home": "vscode-extension-governance", "fragments": ["core", "node/core"] }
   ],
    "sourceRoots": ["src"]
  }`
