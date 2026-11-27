@@ -528,7 +528,7 @@ func validateFiles(files filesJSON) error {
 	if err := validateManifestPath("files.gitignore.path", files.Gitignore.Path); err != nil {
 		return err
 	}
-	if err := ValidateGitignoreFragments(files.Gitignore.Fragments); err != nil {
+	if err := ValidateCanonicalFragments(files.Gitignore.Fragments); err != nil {
 		return fmt.Errorf("files.gitignore.fragments %s", err)
 	}
 	if !hashPattern.MatchString(files.Gitignore.SHA256) {
@@ -633,7 +633,7 @@ func validateToolchain(toolchain *toolchainJSON) (*ToolchainBindings, error) {
 			return nil, fmt.Errorf("toolchain.artifacts fragments bind only on composition families, not on the byte-identity family %q", artifact.Family)
 		}
 		if composition {
-			if err := validateCompositionFragments(artifact.Fragments); err != nil {
+			if err := ValidateCanonicalFragments(artifact.Fragments); err != nil {
 				return nil, fmt.Errorf("toolchain.artifacts fragments for the family %s %s", artifact.Family, err)
 			}
 		}
@@ -669,29 +669,6 @@ func validateToolchain(toolchain *toolchainJSON) (*ToolchainBindings, error) {
 		Artifacts:   artifacts,
 		SourceRoots: sourceRoots,
 	}, nil
-}
-
-// validateCompositionFragments binds the composition fragment list form: a
-// non-empty list, the composition core first, every name in the kebab
-// fragment grammar, and no duplicates.
-func validateCompositionFragments(fragments []string) error {
-	if len(fragments) == 0 {
-		return errors.New("must contain at least the core fragment")
-	}
-	if fragments[0] != "core" {
-		return fmt.Errorf("must begin with the core fragment, got %q", fragments[0])
-	}
-	seen := make(map[string]struct{}, len(fragments))
-	for _, fragment := range fragments {
-		if !kebabNamePattern.MatchString(fragment) {
-			return fmt.Errorf("must be a canonical fragment name, got %q", fragment)
-		}
-		if _, found := seen[fragment]; found {
-			return fmt.Errorf("must not repeat a fragment, got %q", fragment)
-		}
-		seen[fragment] = struct{}{}
-	}
-	return nil
 }
 
 // validateManifestPath rejects absolute paths, parent traversal, and

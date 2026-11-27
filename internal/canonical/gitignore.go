@@ -16,10 +16,12 @@ const gitignoreTreeRoot = "hosting-platforms/github/files/gitignore"
 // gitignore file; the tenant's free project block lives below it.
 const projectBlockMark = "# -- project additions below this line --"
 
-// gitignoreFragmentNamePattern binds the fragment naming grammar: kebab-case
-// segments with at most one slash — the org core ("core"), an ecosystem area
-// ("<area>/core"), or a concern fragment ("<area>/<concern>").
-var gitignoreFragmentNamePattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)?$`)
+// canonicalFragmentNamePattern binds the fragment naming grammar shared by
+// every governed fragment library (the version-control ignore tree and the
+// composition artifact families): kebab-case segments with at most one slash —
+// the core fragment ("core"), an ecosystem area ("<area>/core"), or a concern
+// fragment ("<area>/<concern>").
+var canonicalFragmentNamePattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)?$`)
 
 // canonicalSecretFamilies is the home's projection of the universal
 // secret-artifact guard families owned by the push-protection governance; the
@@ -45,9 +47,10 @@ var licenseFamilyProbes = []struct {
 	{path: []string{"LICENSES", "placeholder"}, isDir: false, name: "LICENSES/<content>"},
 }
 
-// ValidateGitignoreFragments binds the fragment list form: the org core
-// first, every name in the fragment grammar, and no duplicates.
-func ValidateGitignoreFragments(fragments []string) error {
+// ValidateCanonicalFragments binds the fragment list form of every governed
+// fragment library: the core fragment first, every other name an
+// area-qualified fragment of the canonical grammar, and no duplicates.
+func ValidateCanonicalFragments(fragments []string) error {
 	if len(fragments) == 0 {
 		return errors.New("must contain at least the core fragment")
 	}
@@ -56,11 +59,11 @@ func ValidateGitignoreFragments(fragments []string) error {
 	}
 	seen := make(map[string]struct{}, len(fragments))
 	for _, fragment := range fragments {
-		if !gitignoreFragmentNamePattern.MatchString(fragment) {
+		if !canonicalFragmentNamePattern.MatchString(fragment) {
 			return fmt.Errorf("must be a canonical fragment name, got %q", fragment)
 		}
 		if !strings.Contains(fragment, "/") && fragment != "core" {
-			return fmt.Errorf("must name an area or concern below the org core, got %q", fragment)
+			return fmt.Errorf("must name an area or concern below the core fragment, got %q", fragment)
 		}
 		if _, found := seen[fragment]; found {
 			return fmt.Errorf("must not repeat a fragment, got %q", fragment)
@@ -80,7 +83,7 @@ func ValidateGitignoreFragments(fragments []string) error {
 // secret-artifact family, or a license-family match inside the composed
 // region is an error, never a weakened output.
 func RenderGitignoreGovernedRegion(readHome func(path string) ([]byte, error), fragments []string, homeSHA string) ([]byte, error) {
-	if err := ValidateGitignoreFragments(fragments); err != nil {
+	if err := ValidateCanonicalFragments(fragments); err != nil {
 		return nil, fmt.Errorf("the fragment list %s", err)
 	}
 	type fragmentContent struct {

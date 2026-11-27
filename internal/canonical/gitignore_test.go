@@ -26,15 +26,15 @@ func readGitignoreFixture(home map[string][]byte) func(path string) ([]byte, err
 	}
 }
 
-func TestValidateGitignoreFragments(t *testing.T) {
+func TestValidateCanonicalFragments(t *testing.T) {
 	t.Run("valid forms", func(t *testing.T) {
 		for _, fragments := range [][]string{
 			{"core"},
 			{"core", "go/core"},
 			{"core", "opentofu/core", "opentofu/lockfiles-committed"},
 		} {
-			if err := ValidateGitignoreFragments(fragments); err != nil {
-				t.Fatalf("ValidateGitignoreFragments(%v): %v", fragments, err)
+			if err := ValidateCanonicalFragments(fragments); err != nil {
+				t.Fatalf("ValidateCanonicalFragments(%v): %v", fragments, err)
 			}
 		}
 	})
@@ -48,12 +48,12 @@ func TestValidateGitignoreFragments(t *testing.T) {
 		{name: "core not first", fragments: []string{"go/core", "core"}, message: "must begin with the core fragment"},
 		{name: "invalid name", fragments: []string{"core", "Go/Core"}, message: "must be a canonical fragment name"},
 		{name: "parent traversal", fragments: []string{"core", "../evil"}, message: "must be a canonical fragment name"},
-		{name: "bare area without a fragment", fragments: []string{"core", "golang"}, message: "must name an area or concern below the org core"},
+		{name: "bare area without a fragment", fragments: []string{"core", "golang"}, message: "must name an area or concern below the core fragment"},
 		{name: "duplicate", fragments: []string{"core", "go/core", "go/core"}, message: "must not repeat a fragment"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := ValidateGitignoreFragments(test.fragments)
+			err := ValidateCanonicalFragments(test.fragments)
 			if err == nil {
 				t.Fatalf("expected a rejection containing %q", test.message)
 			}
